@@ -112,35 +112,39 @@ const LogMARChart: React.FC = () => {
     setLetters(initialLetters);
   }, []);
 
-  // Initialize speech recognition
   useEffect(() => {
-    if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = "en-US";
+    if (!window.webkitSpeechRecognition) {
+      setError("Speech recognition is not supported in this browser.");
+      return;
+    }
 
-      recognitionRef.current.onstart = () => {
+    try {
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognitionRef.current = recognition;
+
+      recognition.onstart = () => {
         console.log("Speech recognition started");
         setError(null);
       };
 
-      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error("Speech recognition error:", event.error);
-        setError(`Speech recognition error: ${event.error}`);
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error("Speech recognition error:", event);
+        setError(`Error: ${event.error}`);
       };
 
-      recognitionRef.current.onend = () => {
+      recognition.onend = () => {
         console.log("Speech recognition ended");
         // Restart recognition if it ends unexpectedly
-        if (recognitionRef.current) {
-          recognitionRef.current.start();
+        if (recognitionRef.current === recognition) {
+          recognition.start();
         }
       };
 
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         console.log("Speech recognition result received:", event.results);
         const result = event.results[event.results.length - 1];
         const transcript = result[0].transcript.trim().toUpperCase();
@@ -200,57 +204,35 @@ const LogMARChart: React.FC = () => {
               currentLetter.status = "incorrect";
             }
 
-            let nextCol = currentCol + 1;
+            // Move to next position
             let nextRow = currentRow;
+            let nextCol = currentCol + 1;
 
-            while (
-              nextCol < newLetters[nextRow].length &&
-              newLetters[nextRow][nextCol].isSpacer
-            ) {
-              nextCol++;
-            }
-
+            // If we've reached the end of the row, move to the next row
             if (nextCol >= newLetters[nextRow].length) {
               nextRow++;
               nextCol = 0;
-              while (
-                nextCol < newLetters[nextRow].length &&
-                newLetters[nextRow][nextCol].isSpacer
-              ) {
-                nextCol++;
-              }
             }
 
-            if (nextRow < newLetters.length) {
-              console.log("Moving to next position:", {
-                row: nextRow,
-                col: nextCol,
-              });
-              setCurrentRow(nextRow);
-              setCurrentCol(nextCol);
-              newLetters[nextRow][nextCol].status = "current";
+            // If we've reached the end of the chart, stop
+            if (nextRow >= newLetters.length) {
+              console.log("Reached end of chart");
+              return newLetters;
             }
-          } else {
-            console.log("Current position is a spacer, skipping");
+
+            // Update current position
+            setCurrentRow(nextRow);
+            setCurrentCol(nextCol);
           }
 
           return newLetters;
         });
       };
 
-      try {
-        recognitionRef.current.start();
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        setError(
-          `Failed to start speech recognition: ${errorMessage}. Please ensure you have granted microphone permissions.`
-        );
-      }
-    } else {
-      setError(
-        "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari."
-      );
+      recognition.start();
+    } catch (err) {
+      console.error("Error initializing speech recognition:", err);
+      setError("Failed to initialize speech recognition.");
     }
 
     return () => {
