@@ -1,9 +1,35 @@
+@font-face {
+  font-family: "Optician Sans";
+  src: url("/fonts/Optiker-K.ttf") format("truetype"),
+    url("/fonts/Optiker-K.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+}
+
+.chart-row {
+  display: flex;
+  justify-content: center;
+  align-items: baseline; /* Align letters at the bottom */
+}
+
 .letter {
   /* Base size for the largest letters (LogMAR 1.0) */
   font-size: 0.25rem;
   /* Each row is 1.26 times smaller than the previous row */
   font-size: calc(0.25rem * pow(1.26, calc(13 - var(--row-index))));
+  font-family: "Optician Sans", Arial, sans-serif;
   font-weight: bold;
   color: #000;
-  margin: 0 10px;
+  /* Ensure no conflicting properties */
+  display: inline-block; /* Helps with consistent rendering, especially of font size */
+  word-spacing: normal; /* Ensure no default word spacing */
+}
+
+.letter:not(:last-child) {
+  margin-right: 1ch; /* Spacing equal to the width of the character for all but the last */
+}
+
+/* The last letter in each row should not have extra spacing */
+.letter:last-child {
+  letter-spacing: 0;
 }

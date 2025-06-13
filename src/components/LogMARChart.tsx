@@ -27,6 +27,7 @@ const LogMARChart: React.FC = () => {
       {logMARValues.map((_, index) => (
         <div
           key={index}
+          className="chart-row"
           style={{ "--row-index": index } as React.CSSProperties}
         >
           {getRandomSloanLetters(5).map((letter, i) => (
