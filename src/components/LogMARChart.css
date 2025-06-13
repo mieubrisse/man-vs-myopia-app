@@ -1,0 +1,9 @@
+.letter {
+  /* Base size for the largest letters (LogMAR 1.0) */
+  font-size: 0.25rem;
+  /* Each row is 1.26 times smaller than the previous row */
+  font-size: calc(0.25rem * pow(1.26, calc(13 - var(--row-index))));
+  font-weight: bold;
+  color: #000;
+  margin: 0 10px;
+}
