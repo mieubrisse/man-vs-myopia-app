@@ -1,6 +1,18 @@
+html {
+  font-size: 16px;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
   font-weight: 400;
 
   color: #213547;
@@ -13,7 +25,6 @@
 }
 
 body {
-  margin: 0;
   overflow: hidden;
   min-width: 100vw;
   min-height: 100vh;

@@ -10,35 +10,49 @@
   display: flex;
   justify-content: center;
   align-items: baseline; /* Align letters at the bottom */
-  gap: 1ch; /* Spacing between letters equal to the width of the character */
-}
-
-.chart-row:not(:first-child) {
-  /* Margin at the top of the current row, equal to 1ch of this row's letters */
-  margin-top: 1ch;
+  gap: 0; /* Horizontal spacing is handled by invisible characters */
+  line-height: 1; /* Crucial: ensure row height is exactly its content height */
+  margin: 0; /* Zero out all margins */
+  padding: 0; /* Zero out all padding */
 }
 
 .letter {
   /* Base size for the largest letters (LogMAR 1.0) */
-  font-size: 0.25rem;
-  /* Each row is 1.26 times smaller than the previous row */
-  font-size: calc(0.25rem * pow(1.26, calc(13 - var(--row-index))));
+  font-size: calc(0.33rem * pow(1.26, calc(13 - var(--row-index))));
   font-family: "Optician Sans", Arial, sans-serif;
   font-weight: bold;
   color: #000;
-  width: 1ch; /* Ensure each letter occupies exactly 1 character width */
-  text-align: center; /* Center the letter within its 1ch width */
-  line-height: 1; /* Crucial: ensure letter box height is exactly its font-size */
-  /* Ensure no conflicting properties */
-  display: inline-block; /* Helps with consistent rendering, especially of font size */
-  word-spacing: normal; /* Ensure no default word spacing */
-}
-
-.letter:not(:last-child) {
-  margin-right: 1ch; /* Spacing equal to the width of the character for all but the last */
+  line-height: 1; /* Ensure letter box height is exactly its font-size */
+  margin: 0; /* Zero out all margins */
+  padding: 0; /* Zero out all padding */
 }
 
 /* The last letter in each row should not have extra spacing */
 .letter:last-child {
   letter-spacing: 0;
+}
+
+.spacer-char {
+  font-size: calc(0.33rem * pow(1.26, calc(13 - var(--row-index))));
+  font-family: "Optician Sans", Arial, sans-serif;
+  color: transparent; /* Make the character invisible */
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+}
+
+.letter.correct {
+  color: #22c55e; /* Green color for correct answers */
+  transition: color 0.3s ease;
+}
+
+.letter.incorrect {
+  color: #ef4444; /* Red color for incorrect answers */
+  transition: color 0.3s ease;
+}
+
+.letter.current {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
