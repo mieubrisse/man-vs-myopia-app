@@ -72,7 +72,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
     H: ["H", "AITCH", "HATCH"],
     K: ["K", "KAY", "KAYE"],
     N: ["N", "EN", "END"],
-    O: ["O", "OH", "ZERO"],
+    O: ["O", "OH", "ZERO", "0"],
     R: ["R", "ARE", "OUR", "ARR"],
     S: ["S", "ESS", "ES", "US"],
     V: ["V", "VEE", "VEE"],
@@ -127,14 +127,19 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const result = event.results[event.results.length - 1];
-        const transcript = result[0].transcript;
+        const fullTranscript = result[0].transcript; // Get the full transcript
+
+        // Split the transcript into words and take the last one
+        const words = fullTranscript.trim().split(" ");
+        const lastWord = words[words.length - 1];
+
         const confidence = result[0].confidence;
-        const letter = transcriptToLetter(transcript);
+        const letter = transcriptToLetter(lastWord); // Pass only the last word to transcriptToLetter
 
         // Update debug info for all results
         setDebugInfo((prev) => {
           const newInfo = {
-            transcript,
+            transcript: fullTranscript,
             confidence,
             letter,
             timestamp: Date.now(),
@@ -151,7 +156,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
           hasChartRef: !!chartRef.current,
         });
 
-        if (!result.isFinal && letter && chartRef.current) {
+        if (result.isFinal && letter && chartRef.current) {
           console.log("About to call guessLetter with:", letter);
           chartRef.current.guessLetter(letter);
         }

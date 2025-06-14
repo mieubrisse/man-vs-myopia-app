@@ -8,8 +8,7 @@ import "./LogMARChart.css";
 
 interface LetterState {
   char: string;
-  isSpacer?: boolean;
-  status?: "correct" | "incorrect" | "current" | undefined;
+  status?: "correct" | "incorrect" | "current" | "pending";
 }
 
 interface LogMARChartProps {
@@ -24,88 +23,82 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
   ({ onLetterValidated }, ref) => {
     const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
     const NUM_LETTERS_PER_LINE = 5;
+    const NUM_ROWS = 14; // Based on the length of logMARValues (now hardcoded as per new structure)
 
-    const logMARValues = [
-      1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0, -0.1, -0.2, -0.3,
-    ];
+    const [allLetters, setAllLetters] = useState<LetterState[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
 
-    const [letters, setLetters] = useState<LetterState[][]>([]);
-    const [currentRow, setCurrentRow] = useState(0);
-    const [currentCol, setCurrentCol] = useState(0);
-
-    // Initialize the chart with random letters
+    // Initialize the chart with random letters (only actual letters, no spacers)
     useEffect(() => {
-      const initialLetters = logMARValues.map(() => {
-        const row: LetterState[] = [];
+      const initialAllLetters: LetterState[] = [];
+      for (let r = 0; r < NUM_ROWS; r++) {
         for (let i = 0; i < NUM_LETTERS_PER_LINE; i++) {
           const randomIndex = Math.floor(Math.random() * SLOAN_LETTERS.length);
-          row.push({ char: SLOAN_LETTERS[randomIndex] });
-          if (i < NUM_LETTERS_PER_LINE - 1) {
-            row.push({ char: "C", isSpacer: true });
-          }
+          initialAllLetters.push({
+            char: SLOAN_LETTERS[randomIndex],
+            status: "pending",
+          }); // Default to 'pending'
         }
-        return row;
-      });
-
-      if (initialLetters[0] && initialLetters[0][0]) {
-        initialLetters[0][0].status = "current";
       }
 
-      setLetters(initialLetters);
+      if (initialAllLetters.length > 0) {
+        initialAllLetters[0].status = "current"; // First letter is 'current'
+      }
+
+      setAllLetters(initialAllLetters);
+      console.log(
+        "All letters initialized in useEffect:",
+        initialAllLetters.length,
+        initialAllLetters
+      );
+      setCurrentIndex(0);
     }, []);
 
     // Handle a letter guess
     const guessLetter = (letter: string) => {
-      console.log("guessLetter called with:", letter, "current position:", {
-        row: currentRow,
-        col: currentCol,
-      });
+      console.log(
+        "guessLetter called with:",
+        letter,
+        "current index:",
+        currentIndex
+      );
 
-      setLetters((prevLetters) => {
-        const newLetters = [...prevLetters];
-        const currentLetter = newLetters[currentRow][currentCol];
+      setAllLetters((prevAllLetters) => {
+        const newAllLetters = [...prevAllLetters];
+        const currentLetterState = newAllLetters[currentIndex];
 
-        if (!currentLetter.isSpacer) {
-          const isCorrect = letter === currentLetter.char;
-          console.log("Letter comparison:", {
-            guessed: letter,
-            actual: currentLetter.char,
-            isCorrect,
-          });
+        // No need to check for spacer here, as allLetters only contains actual letters
+        const isCorrect = letter === currentLetterState.char;
+        console.log("Letter comparison:", {
+          guessed: letter,
+          actual: currentLetterState.char,
+          isCorrect,
+        });
 
-          if (isCorrect) {
-            currentLetter.status = "correct";
-          } else {
-            currentLetter.status = "incorrect";
-          }
-
-          onLetterValidated?.(isCorrect);
-
-          // Calculate next position
-          let nextRow = currentRow;
-          let nextCol = currentCol + 1;
-
-          // If we've reached the end of the row, move to the next row
-          if (nextCol >= newLetters[nextRow].length) {
-            nextRow++;
-            nextCol = 0;
-          }
-
-          // If we've reached the end of the chart, stop
-          if (nextRow >= newLetters.length) {
-            return newLetters;
-          }
-
-          // Update the next letter's status to current
-          newLetters[nextRow][nextCol].status = "current";
-          console.log("Next position set to:", { row: nextRow, col: nextCol });
-
-          // Update current position state after marking the next letter
-          setCurrentRow(nextRow);
-          setCurrentCol(nextCol);
+        if (isCorrect) {
+          currentLetterState.status = "correct";
+        } else {
+          currentLetterState.status = "incorrect";
         }
 
-        return newLetters;
+        onLetterValidated?.(isCorrect);
+
+        const nextIndex = currentIndex + 1; // Simply move to the next letter
+
+        // If we've reached the end of the chart, stop
+        if (nextIndex >= newAllLetters.length) {
+          // No more letters to guess
+          setCurrentIndex(newAllLetters.length); // Set to end to prevent further processing
+          return newAllLetters;
+        }
+
+        // Mark the next letter as current
+        newAllLetters[nextIndex].status = "current";
+        console.log("Next index set to:", nextIndex);
+
+        setCurrentIndex(nextIndex); // Update the main index state
+
+        return newAllLetters;
       });
     };
 
@@ -130,24 +123,36 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
             alignItems: "center",
           }}
         >
-          {letters.map((row, rowIndex) => (
-            <div
-              key={rowIndex}
-              className="chart-row"
-              style={{ "--row-index": rowIndex } as React.CSSProperties}
-            >
-              {row.map((item, colIndex) => (
-                <span
-                  key={colIndex}
-                  className={`${item.isSpacer ? "spacer-char" : "letter"} ${
-                    item.status || ""
-                  }`}
-                >
-                  {item.char}
-                </span>
-              ))}
-            </div>
-          ))}
+          {allLetters.length > 0 ? (
+            Array.from({ length: NUM_ROWS }).map((_, rowIndex) => (
+              <div
+                key={rowIndex}
+                className="chart-row"
+                style={{ "--row-index": rowIndex } as React.CSSProperties}
+              >
+                {Array.from({ length: NUM_LETTERS_PER_LINE }).map(
+                  (_, colIndex) => {
+                    const itemIndex =
+                      rowIndex * NUM_LETTERS_PER_LINE + colIndex;
+                    const item = allLetters[itemIndex];
+
+                    return (
+                      <React.Fragment key={colIndex}>
+                        <span className={`letter ${item.status || ""}`}>
+                          {item.char}
+                        </span>
+                        {colIndex < NUM_LETTERS_PER_LINE - 1 && (
+                          <span className="spacer-char">C</span> // Spacer added here for display
+                        )}
+                      </React.Fragment>
+                    );
+                  }
+                )}
+              </div>
+            ))
+          ) : (
+            <div>Loading chart...</div> // Or any other loading indicator
+          )}
         </div>
       </div>
     );
