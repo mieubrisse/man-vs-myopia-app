@@ -56,12 +56,22 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
 
     // Handle a letter guess
     const guessLetter = (letter: string) => {
+      console.log("guessLetter called with:", letter, "current position:", {
+        row: currentRow,
+        col: currentCol,
+      });
+
       setLetters((prevLetters) => {
         const newLetters = [...prevLetters];
         const currentLetter = newLetters[currentRow][currentCol];
 
         if (!currentLetter.isSpacer) {
           const isCorrect = letter === currentLetter.char;
+          console.log("Letter comparison:", {
+            guessed: letter,
+            actual: currentLetter.char,
+            isCorrect,
+          });
 
           if (isCorrect) {
             currentLetter.status = "correct";
@@ -71,7 +81,7 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
 
           onLetterValidated?.(isCorrect);
 
-          // Move to next position
+          // Calculate next position
           let nextRow = currentRow;
           let nextCol = currentCol + 1;
 
@@ -86,7 +96,11 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
             return newLetters;
           }
 
-          // Update current position
+          // Update the next letter's status to current
+          newLetters[nextRow][nextCol].status = "current";
+          console.log("Next position set to:", { row: nextRow, col: nextCol });
+
+          // Update current position state after marking the next letter
           setCurrentRow(nextRow);
           setCurrentCol(nextCol);
         }

@@ -61,8 +61,8 @@ interface DebugInfo {
 }
 
 const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
+  // console.log('SpeechRecognizer component rendered'); // Removed debug log
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const CONFIDENCE_THRESHOLD = 0.6;
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
 
   // Common ways people might say each letter
@@ -85,7 +85,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
 
     // Check each letter's possible phrases
     for (const [letter, phrases] of Object.entries(LETTER_MAPPINGS)) {
-      if (phrases.some((phrase) => upperTranscript.includes(phrase))) {
+      if (phrases.some((phrase) => upperTranscript === phrase)) {
         return letter;
       }
     }
@@ -94,6 +94,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
   };
 
   useEffect(() => {
+    // console.log('SpeechRecognizer useEffect started'); // Removed debug log
     if (!window.webkitSpeechRecognition) {
       console.error("Speech recognition is not supported in this browser.");
       return;
@@ -121,7 +122,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
 
       recognition.onend = () => {
         console.log("Speech recognition ended");
-        recognition.start();
+        recognition.start(); // Re-enabled for continuous recognition
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -142,23 +143,28 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
           return [...prev, newInfo].slice(-5);
         });
 
-        // Only process final results with sufficient confidence
-        if (
-          result.isFinal &&
-          confidence >= CONFIDENCE_THRESHOLD &&
-          letter &&
-          chartRef.current
-        ) {
+        // Process interim results with sufficient confidence
+        console.log("Speech recognition result:", {
+          isFinal: result.isFinal,
+          confidence,
+          letter,
+          hasChartRef: !!chartRef.current,
+        });
+
+        if (!result.isFinal && letter && chartRef.current) {
+          console.log("About to call guessLetter with:", letter);
           chartRef.current.guessLetter(letter);
         }
       };
 
+      // console.log('Attempting to start speech recognition...'); // Removed debug log
       recognition.start();
     } catch (err) {
       console.error("Error initializing speech recognition:", err);
     }
 
     return () => {
+      // console.log('SpeechRecognizer useEffect cleanup'); // Removed debug log
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
