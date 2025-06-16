@@ -66,7 +66,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
 
   // Common ways people might say each letter or command
-  const UTTERANCE_MAPPINGS: { [key: string]: string[] } = {
+  const RECOGNIZED_UTTERANCE_MAPPINGS: { [key: string]: string[] } = {
     C: ["C", "SEE", "SEA", "CEE"],
     D: ["D", "DEE", "DE"],
     H: ["H", "AITCH", "HATCH"],
@@ -81,17 +81,19 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
   };
 
   // Helper function to convert a transcript to an utterance
-  const transcriptToUtterance = (transcript: string): string | null => {
+  const recognizeUtterance = (transcript: string): string | null => {
     const upperTranscript = transcript.trim().toUpperCase();
 
     // Check each utterance's possible phrases
-    for (const [utterance, phrases] of Object.entries(UTTERANCE_MAPPINGS)) {
+    for (const [recognizedUtterance, phrases] of Object.entries(
+      RECOGNIZED_UTTERANCE_MAPPINGS
+    )) {
       if (phrases.some((phrase) => upperTranscript === phrase)) {
-        return utterance;
+        return recognizedUtterance;
       }
     }
 
-    return null;
+    return upperTranscript;
   };
 
   useEffect(() => {
@@ -135,14 +137,14 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
         const lastWord = words[words.length - 1];
 
         const confidence = result[0].confidence;
-        const utterance = transcriptToUtterance(lastWord); // Pass only the last word to transcriptToUtterance
+        const recognizedUtterance = recognizeUtterance(lastWord); // Pass only the last word to transcriptToUtterance
 
         // Update debug info for all results
         setDebugInfo((prev) => {
           const newInfo = {
             transcript: fullTranscript,
             confidence,
-            utterance,
+            utterance: recognizedUtterance,
             timestamp: Date.now(),
             isFinal: result.isFinal,
           };
@@ -153,20 +155,20 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
         console.log("Speech recognition result:", {
           isFinal: result.isFinal,
           confidence,
-          utterance,
+          utterance: recognizedUtterance,
           hasChartRef: !!chartRef.current,
         });
 
-        if (result.isFinal && utterance && chartRef.current) {
-          console.log("About to call guessLetter with:", utterance);
-          if (utterance === "FINISH") {
+        if (result.isFinal && recognizedUtterance && chartRef.current) {
+          console.log("About to call guessLetter with:", recognizedUtterance);
+          if (recognizedUtterance === "FINISH") {
             chartRef.current.finishAssessment();
             // Stop the recognition engine when assessment is finished
             if (recognitionRef.current) {
               recognitionRef.current.stop();
             }
           } else {
-            chartRef.current.guessLetter(utterance);
+            chartRef.current.guessLetter(recognizedUtterance);
           }
         }
       };

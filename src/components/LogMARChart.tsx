@@ -105,8 +105,15 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
 
     // Handle finishing the assessment
     const finishAssessment = () => {
-      // TODO: Implement assessment completion logic
+      // Calculate LogMAR score: 1.1 - 0.02 per correct letter
+      const correctLetters = allLetters.filter(
+        (letter) => letter.status === "correct"
+      ).length;
+      const logMARScore = 1.1 - correctLetters * 0.02;
+
       console.log("Assessment finished");
+      console.log(`Correct letters: ${correctLetters}`);
+      console.log(`LogMAR score: ${logMARScore.toFixed(2)}`);
     };
 
     // Expose the guessLetter function to parent components
