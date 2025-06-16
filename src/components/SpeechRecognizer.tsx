@@ -50,6 +50,7 @@ declare global {
 
 interface SpeechRecognizerProps {
   chartRef: React.RefObject<LogMARChartHandle | null>;
+  isTestComplete?: boolean;
 }
 
 interface DebugInfo {
@@ -60,8 +61,10 @@ interface DebugInfo {
   isFinal: boolean;
 }
 
-const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
-  // console.log('SpeechRecognizer component rendered'); // Removed debug log
+const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({
+  chartRef,
+  isTestComplete = false,
+}) => {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
 
@@ -79,9 +82,20 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
     Z: ["Z", "ZEE", "ZED", "ZEE"],
   };
 
-  // Helper function to convert a transcript to a letter
   const transcriptToLetter = (transcript: string): string | null => {
     const upperTranscript = transcript.trim().toUpperCase();
+
+    // Check for finish command first
+    if (upperTranscript === "FINISH") {
+      if (chartRef.current) {
+        chartRef.current.finishTest();
+        // Stop recognition when finish is detected
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+      }
+      return null;
+    }
 
     // Check each letter's possible phrases
     for (const [letter, phrases] of Object.entries(LETTER_MAPPINGS)) {
@@ -94,7 +108,6 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
   };
 
   useEffect(() => {
-    // console.log('SpeechRecognizer useEffect started'); // Removed debug log
     if (!window.webkitSpeechRecognition) {
       console.error("Speech recognition is not supported in this browser.");
       return;
@@ -122,19 +135,22 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
 
       recognition.onend = () => {
         console.log("Speech recognition ended");
-        recognition.start(); // Re-enabled for continuous recognition
+        // Only restart if we haven't explicitly stopped it
+        if (recognitionRef.current) {
+          recognition.start();
+        }
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const result = event.results[event.results.length - 1];
-        const fullTranscript = result[0].transcript; // Get the full transcript
+        const fullTranscript = result[0].transcript;
 
         // Split the transcript into words and take the last one
         const words = fullTranscript.trim().split(" ");
         const lastWord = words[words.length - 1];
 
         const confidence = result[0].confidence;
-        const letter = transcriptToLetter(lastWord); // Pass only the last word to transcriptToLetter
+        const letter = transcriptToLetter(lastWord);
 
         // Update debug info for all results
         setDebugInfo((prev) => {
@@ -148,33 +164,27 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
           return [...prev, newInfo].slice(-5);
         });
 
-        // Process interim results with sufficient confidence
-        console.log("Speech recognition result:", {
-          isFinal: result.isFinal,
-          confidence,
-          letter,
-          hasChartRef: !!chartRef.current,
-        });
-
         if (result.isFinal && letter && chartRef.current) {
-          console.log("About to call guessLetter with:", letter);
           chartRef.current.guessLetter(letter);
         }
       };
 
-      // console.log('Attempting to start speech recognition...'); // Removed debug log
       recognition.start();
     } catch (err) {
       console.error("Error initializing speech recognition:", err);
     }
 
     return () => {
-      // console.log('SpeechRecognizer useEffect cleanup'); // Removed debug log
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
   }, [chartRef]);
+
+  // Don't render anything if the test is complete
+  if (isTestComplete) {
+    return null;
+  }
 
   return (
     <div

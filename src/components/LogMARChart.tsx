@@ -3,8 +3,11 @@ import React, {
   useState,
   useImperativeHandle,
   forwardRef,
+  useRef,
 } from "react";
 import "./LogMARChart.css";
+import LogMARResults from "./LogMARResults";
+import SpeechRecognizer from "./SpeechRecognizer";
 
 interface LetterState {
   char: string;
@@ -13,23 +16,30 @@ interface LetterState {
 
 interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
+  onTestComplete?: (score: number) => void;
 }
 
 export interface LogMARChartHandle {
   guessLetter: (letter: string) => void;
+  finishTest: () => void;
+  resetTest: () => void;
 }
 
 const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
-  ({ onLetterValidated }, ref) => {
+  ({ onLetterValidated, onTestComplete }, ref) => {
     const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
     const NUM_LETTERS_PER_LINE = 5;
-    const NUM_ROWS = 14; // Based on the length of logMARValues (now hardcoded as per new structure)
+    const NUM_ROWS = 14;
+    const BASE_LOG_MAR = 0.1; // Starting LogMAR value
+    const LOG_MAR_INCREMENT = 0.02; // Increment per incorrect letter
 
     const [allLetters, setAllLetters] = useState<LetterState[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isTestComplete, setIsTestComplete] = useState(false);
+    const [finalScore, setFinalScore] = useState<number | null>(null);
+    const chartRef = useRef<LogMARChartHandle>(null);
 
-    // Initialize the chart with random letters (only actual letters, no spacers)
-    useEffect(() => {
+    const initializeChart = () => {
       const initialAllLetters: LetterState[] = [];
       for (let r = 0; r < NUM_ROWS; r++) {
         for (let i = 0; i < NUM_LETTERS_PER_LINE; i++) {
@@ -37,43 +47,41 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
           initialAllLetters.push({
             char: SLOAN_LETTERS[randomIndex],
             status: "pending",
-          }); // Default to 'pending'
+          });
         }
       }
 
       if (initialAllLetters.length > 0) {
-        initialAllLetters[0].status = "current"; // First letter is 'current'
+        initialAllLetters[0].status = "current";
       }
 
       setAllLetters(initialAllLetters);
-      console.log(
-        "All letters initialized in useEffect:",
-        initialAllLetters.length,
-        initialAllLetters
-      );
       setCurrentIndex(0);
+      setIsTestComplete(false);
+      setFinalScore(null);
+    };
+
+    useEffect(() => {
+      initializeChart();
     }, []);
+
+    // Calculate LogMAR score
+    const calculateLogMARScore = () => {
+      const incorrectLetters = allLetters.filter(
+        (letter) => letter.status === "incorrect"
+      ).length;
+      return BASE_LOG_MAR + LOG_MAR_INCREMENT * incorrectLetters;
+    };
 
     // Handle a letter guess
     const guessLetter = (letter: string) => {
-      console.log(
-        "guessLetter called with:",
-        letter,
-        "current index:",
-        currentIndex
-      );
+      if (isTestComplete) return;
 
       setAllLetters((prevAllLetters) => {
         const newAllLetters = [...prevAllLetters];
         const currentLetterState = newAllLetters[currentIndex];
 
-        // No need to check for spacer here, as allLetters only contains actual letters
         const isCorrect = letter === currentLetterState.char;
-        console.log("Letter comparison:", {
-          guessed: letter,
-          actual: currentLetterState.char,
-          isCorrect,
-        });
 
         if (isCorrect) {
           currentLetterState.status = "correct";
@@ -83,29 +91,47 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
 
         onLetterValidated?.(isCorrect);
 
-        const nextIndex = currentIndex + 1; // Simply move to the next letter
+        const nextIndex = currentIndex + 1;
 
-        // If we've reached the end of the chart, stop
         if (nextIndex >= newAllLetters.length) {
-          // No more letters to guess
-          setCurrentIndex(newAllLetters.length); // Set to end to prevent further processing
+          const score = calculateLogMARScore();
+          setIsTestComplete(true);
+          setFinalScore(score);
+          onTestComplete?.(score);
           return newAllLetters;
         }
 
-        // Mark the next letter as current
         newAllLetters[nextIndex].status = "current";
-        console.log("Next index set to:", nextIndex);
-
-        setCurrentIndex(nextIndex); // Update the main index state
+        setCurrentIndex(nextIndex);
 
         return newAllLetters;
       });
     };
 
-    // Expose the guessLetter function to parent components
+    // Handle test completion
+    const finishTest = () => {
+      if (!isTestComplete) {
+        const score = calculateLogMARScore();
+        setIsTestComplete(true);
+        setFinalScore(score);
+        onTestComplete?.(score);
+      }
+    };
+
+    const resetTest = () => {
+      initializeChart();
+    };
+
+    // Expose the functions to parent components
     useImperativeHandle(ref, () => ({
       guessLetter,
+      finishTest,
+      resetTest,
     }));
+
+    if (isTestComplete && finalScore !== null) {
+      return <LogMARResults score={finalScore} onRestart={resetTest} />;
+    }
 
     return (
       <div
@@ -116,6 +142,7 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
           width: "100%",
         }}
       >
+        <SpeechRecognizer chartRef={chartRef} isTestComplete={isTestComplete} />
         <div
           style={{
             display: "flex",
@@ -142,7 +169,7 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
                           {item.char}
                         </span>
                         {colIndex < NUM_LETTERS_PER_LINE - 1 && (
-                          <span className="spacer-char">C</span> // Spacer added here for display
+                          <span className="spacer-char">C</span>
                         )}
                       </React.Fragment>
                     );
@@ -151,7 +178,7 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
               </div>
             ))
           ) : (
-            <div>Loading chart...</div> // Or any other loading indicator
+            <div>Loading chart...</div>
           )}
         </div>
       </div>
