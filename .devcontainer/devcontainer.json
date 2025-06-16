@@ -28,6 +28,6 @@
       "host": "0.0.0.0"
     }
   },
-  "postCreateCommand": "npm install",
+  "postCreateCommand": "npm install && npm run dev",
   "remoteUser": "node"
 }
