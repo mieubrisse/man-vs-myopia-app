@@ -18,7 +18,7 @@
 
 .letter {
   /* Base size for the largest letters (LogMAR 1.0) */
-  font-size: calc(0.33rem * pow(1.26, calc(13 - var(--row-index))));
+  font-size: calc(0.33rem * pow(1.2589, calc(13 - var(--row-index))));
   font-family: "Optician Sans", Arial, sans-serif;
   font-weight: bold;
   color: #000;
@@ -33,7 +33,7 @@
 }
 
 .spacer-char {
-  font-size: calc(0.33rem * pow(1.26, calc(13 - var(--row-index))));
+  font-size: calc(0.33rem * pow(1.2589, calc(13 - var(--row-index))));
   font-family: "Optician Sans", Arial, sans-serif;
   color: transparent; /* Make the character invisible */
   line-height: 1;
