@@ -17,6 +17,7 @@ interface LogMARChartProps {
 
 export interface LogMARChartHandle {
   guessLetter: (letter: string) => void;
+  finishAssessment: () => void;
 }
 
 const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
@@ -102,9 +103,16 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
       });
     };
 
+    // Handle finishing the assessment
+    const finishAssessment = () => {
+      // TODO: Implement assessment completion logic
+      console.log("Assessment finished");
+    };
+
     // Expose the guessLetter function to parent components
     useImperativeHandle(ref, () => ({
       guessLetter,
+      finishAssessment,
     }));
 
     return (
