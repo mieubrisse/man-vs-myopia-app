@@ -1,11 +1,23 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import "./App.css";
 import type { LogMARChartHandle } from "./components/LogMARChart";
 import LogMARChart from "./components/LogMARChart";
 import SpeechRecognizer from "./components/SpeechRecognizer";
+import CalibrationScreen from "./components/CalibrationScreen";
 
 const App: React.FC = () => {
   const chartRef = useRef<LogMARChartHandle>(null);
+  const [isCalibrated, setIsCalibrated] = useState(false);
+
+  const handleCalibrationComplete = () => {
+    setIsCalibrated(true);
+  };
+
+  if (!isCalibrated) {
+    return (
+      <CalibrationScreen onCalibrationComplete={handleCalibrationComplete} />
+    );
+  }
 
   return (
     <div
