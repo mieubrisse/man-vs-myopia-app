@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import "./HomeScreen.css";
 
 interface HomeScreenProps {
@@ -10,6 +10,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartCalibration,
   onStartAssessment,
 }) => {
+  const [hasCalibration, setHasCalibration] = useState(false);
+
+  // Check for existing calibration on component mount
+  useEffect(() => {
+    const existingCalibration = localStorage.getItem("calibrationHeight");
+    setHasCalibration(!!existingCalibration);
+  }, []);
+
+  const handleStartAssessment = () => {
+    if (hasCalibration) {
+      onStartAssessment();
+    }
+  };
+
   return (
     <div className="home-screen">
       <div className="home-container">
@@ -34,8 +48,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           </button>
 
           <button
-            className="home-option assessment-option"
-            onClick={onStartAssessment}
+            className={`home-option assessment-option ${
+              !hasCalibration ? "disabled" : ""
+            }`}
+            onClick={handleStartAssessment}
+            disabled={!hasCalibration}
+            title={
+              !hasCalibration ? "Complete calibration to start assessment" : ""
+            }
           >
             <div className="option-icon">👁️</div>
             <div className="option-content">
