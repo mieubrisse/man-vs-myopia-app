@@ -24,6 +24,10 @@ const App: React.FC = () => {
     setCurrentScreen("assessment");
   };
 
+  const handleGoHome = () => {
+    setCurrentScreen("home");
+  };
+
   if (currentScreen === "home") {
     return (
       <HomeScreen
@@ -35,7 +39,10 @@ const App: React.FC = () => {
 
   if (currentScreen === "calibration") {
     return (
-      <CalibrationScreen onCalibrationComplete={handleCalibrationComplete} />
+      <CalibrationScreen
+        onCalibrationComplete={handleCalibrationComplete}
+        onGoHome={handleGoHome}
+      />
     );
   }
 
