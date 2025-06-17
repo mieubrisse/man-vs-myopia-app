@@ -13,18 +13,38 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onViewConfigurations,
 }) => {
   const [hasCalibration, setHasCalibration] = useState(false);
+  const [hasViewingConfigurations, setHasViewingConfigurations] =
+    useState(false);
 
-  // Check for existing calibration on component mount
+  // Check for existing calibration and viewing configurations on component mount
   useEffect(() => {
     const existingCalibration = localStorage.getItem("fontHeightMm");
     setHasCalibration(!!existingCalibration);
+
+    const savedConfigurations = localStorage.getItem("viewingConfigurations");
+    if (savedConfigurations) {
+      try {
+        const parsed = JSON.parse(savedConfigurations);
+        setHasViewingConfigurations(parsed.length > 0);
+      } catch {
+        setHasViewingConfigurations(false);
+      }
+    } else {
+      setHasViewingConfigurations(false);
+    }
   }, []);
 
   const handleStartAssessment = () => {
-    if (hasCalibration) {
+    if (hasCalibration && hasViewingConfigurations) {
       onStartAssessment();
     }
   };
+
+  const canStartAssessment = hasCalibration && hasViewingConfigurations;
+  const missingRequirements = [];
+  if (!hasCalibration) missingRequirements.push("font size calibration");
+  if (!hasViewingConfigurations)
+    missingRequirements.push("viewing configuration");
 
   return (
     <div className="home-screen">
@@ -62,12 +82,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
           <button
             className={`home-option assessment-option ${
-              !hasCalibration ? "disabled" : ""
+              !canStartAssessment ? "disabled" : ""
             }`}
             onClick={handleStartAssessment}
-            disabled={!hasCalibration}
+            disabled={!canStartAssessment}
             title={
-              !hasCalibration ? "Complete calibration to start assessment" : ""
+              !canStartAssessment
+                ? `Complete ${missingRequirements.join(
+                    " and "
+                  )} to start assessment`
+                : ""
             }
           >
             <div className="option-icon">👁️</div>
