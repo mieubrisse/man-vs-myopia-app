@@ -18,7 +18,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // Check for existing calibration and viewing configurations on component mount
   useEffect(() => {
-    const existingCalibration = localStorage.getItem("fontHeightMm");
+    const existingCalibration = localStorage.getItem("fontHeightCm");
     setHasCalibration(!!existingCalibration);
 
     const savedConfigurations = localStorage.getItem("viewingConfigurations");

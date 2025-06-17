@@ -22,6 +22,12 @@ const App: React.FC = () => {
     measuredHeightPx: number;
     measuredHeightMm: number;
   } | null>(null);
+  const [selectedViewingConfiguration, setSelectedViewingConfiguration] =
+    useState<{
+      id: string;
+      name: string;
+      distanceCentimeters: number;
+    } | null>(null);
 
   const handleStartCalibration = () => {
     setCurrentScreen("calibration");
@@ -31,11 +37,18 @@ const App: React.FC = () => {
     setCurrentScreen("viewingConfigurationSelection");
   };
 
-  const handleViewingConfigurationSelected = () => {
+  const handleViewingConfigurationSelected = (configuration: {
+    id: string;
+    name: string;
+    distanceCentimeters: number;
+  }) => {
+    setSelectedViewingConfiguration(configuration);
+
     // Get calibration data from localStorage
-    const fontHeightMm = localStorage.getItem("fontHeightMm");
-    if (fontHeightMm) {
-      const measuredHeightMm = parseFloat(fontHeightMm);
+    const fontHeightCm = localStorage.getItem("fontHeightCm");
+    if (fontHeightCm) {
+      const measuredHeightCm = parseFloat(fontHeightCm);
+      const measuredHeightMm = measuredHeightCm * 10; // Convert cm to mm
       const measuredHeightPx = window.innerWidth > 600 ? 600 : 300; // 600px on desktop, 300px on mobile
 
       setCalibrationData({
@@ -94,7 +107,11 @@ const App: React.FC = () => {
       }}
     >
       <div style={{ flex: "1 1 auto" }}>
-        <LogMARChart ref={chartRef} calibrationData={calibrationData} />
+        <LogMARChart
+          ref={chartRef}
+          calibrationData={calibrationData}
+          viewingConfiguration={selectedViewingConfiguration}
+        />
       </div>
       <div
         style={{

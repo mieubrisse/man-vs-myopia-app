@@ -6,16 +6,19 @@ interface CalibrationScreenProps {
 }
 
 const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
-  const [heightMm, setHeightMm] = useState<string>("");
+  const [heightCm, setHeightCm] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [hasExistingCalibration, setHasExistingCalibration] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [savedCalibrationValue, setSavedCalibrationValue] =
+    useState<string>("");
 
   // Load existing calibration on component mount
   useEffect(() => {
-    const existingCalibration = localStorage.getItem("fontHeightMm");
+    const existingCalibration = localStorage.getItem("fontHeightCm");
     if (existingCalibration) {
-      setHeightMm(existingCalibration);
+      setHeightCm(existingCalibration);
+      setSavedCalibrationValue(existingCalibration);
       setHasExistingCalibration(true);
     }
   }, []);
@@ -23,13 +26,13 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const height = parseFloat(heightMm);
+    const height = parseFloat(heightCm);
     if (isNaN(height) || height <= 0) {
       setError("Please enter a valid positive number");
       return;
     }
 
-    if (height > 500) {
+    if (height > 50) {
       setError("Height seems too large. Please check your measurement.");
       return;
     }
@@ -37,7 +40,11 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
     setError("");
 
     // Save calibration to localStorage
-    localStorage.setItem("fontHeightMm", heightMm);
+    localStorage.setItem("fontHeightCm", heightCm);
+
+    // Update the saved calibration value and show notification
+    setSavedCalibrationValue(heightCm);
+    setHasExistingCalibration(true);
 
     // Show success toast
     setShowToast(true);
@@ -45,8 +52,9 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
   };
 
   const handleDeleteCalibration = () => {
-    localStorage.removeItem("fontHeightMm");
-    setHeightMm("");
+    localStorage.removeItem("fontHeightCm");
+    setHeightCm("");
+    setSavedCalibrationValue("");
     setHasExistingCalibration(false);
 
     // Show deletion toast
@@ -73,7 +81,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
           {hasExistingCalibration && (
             <div className="existing-calibration">
               <p>
-                Current calibration: <strong>{heightMm}mm</strong>
+                Current calibration: <strong>{savedCalibrationValue}cm</strong>
               </p>
               <button
                 className="delete-calibration-button"
@@ -85,23 +93,23 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
           )}
 
           <p className="calibration-instructions">
-            Please measure the height of the letter "E" below in millimeters
+            Please measure the height of the letter "E" below in centimeters
             using a ruler or measuring device.
           </p>
 
           <form onSubmit={handleSubmit} className="calibration-form">
             <div className="input-group">
               <label htmlFor="height-input">
-                Height of the letter "E" (in millimeters):
+                Height of the letter "E" (in centimeters):
               </label>
               <input
                 id="height-input"
                 type="number"
                 step="0.1"
                 min="0"
-                value={heightMm}
-                onChange={(e) => setHeightMm(e.target.value)}
-                placeholder="Enter height in mm"
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                placeholder="Enter height in cm"
                 className="height-input"
               />
             </div>
