@@ -11,8 +11,14 @@ interface LetterState {
   status?: "correct" | "incorrect" | "current" | "pending";
 }
 
+interface CalibrationData {
+  measuredHeightPx: number;
+  measuredHeightMm: number;
+}
+
 interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
+  calibrationData?: CalibrationData | null;
 }
 
 export interface LogMARChartHandle {
@@ -21,13 +27,22 @@ export interface LogMARChartHandle {
 }
 
 const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
-  ({ onLetterValidated }, ref) => {
+  ({ onLetterValidated, calibrationData }, ref) => {
     const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
     const NUM_LETTERS_PER_LINE = 5;
     const NUM_ROWS = 14; // Based on the length of logMARValues (now hardcoded as per new structure)
 
     const [allLetters, setAllLetters] = useState<LetterState[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
+
+    // Log calibration data when component mounts
+    useEffect(() => {
+      if (calibrationData) {
+        console.log("Assessment loaded with calibration data:");
+        console.log("Measured height (px):", calibrationData.measuredHeightPx);
+        console.log("Measured height (mm):", calibrationData.measuredHeightMm);
+      }
+    }, [calibrationData]);
 
     // Initialize the chart with random letters (only actual letters, no spacers)
     useEffect(() => {
@@ -131,6 +146,13 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
           width: "100%",
         }}
       >
+        {calibrationData && (
+          <div className="calibration-info">
+            {calibrationData.measuredHeightPx}px ={" "}
+            {calibrationData.measuredHeightMm}mm
+          </div>
+        )}
+
         <div
           style={{
             display: "flex",
