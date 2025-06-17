@@ -94,6 +94,24 @@
   box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
 }
 
+.home-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #dee2e6;
+  background: #f8f9fa;
+}
+
+.home-option.disabled:hover {
+  border-color: #dee2e6;
+  box-shadow: none;
+  transform: none;
+}
+
+.home-option.disabled .option-content h3,
+.home-option.disabled .option-content p {
+  color: #6c757d;
+}
+
 @media (max-width: 600px) {
   .home-container {
     padding: 2rem;
