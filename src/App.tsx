@@ -11,12 +11,27 @@ type AppScreen = "home" | "calibration" | "assessment";
 const App: React.FC = () => {
   const chartRef = useRef<LogMARChartHandle>(null);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
+  const [calibrationData, setCalibrationData] = useState<{
+    measuredHeightPx: number;
+    measuredHeightMm: number;
+  } | null>(null);
 
   const handleStartCalibration = () => {
     setCurrentScreen("calibration");
   };
 
   const handleStartAssessment = () => {
+    // Get calibration data from localStorage
+    const fontHeightMm = localStorage.getItem("fontHeightMm");
+    if (fontHeightMm) {
+      const measuredHeightMm = parseFloat(fontHeightMm);
+      const measuredHeightPx = window.innerWidth > 600 ? 600 : 300; // 600px on desktop, 300px on mobile
+
+      setCalibrationData({
+        measuredHeightPx,
+        measuredHeightMm,
+      });
+    }
     setCurrentScreen("assessment");
   };
 
@@ -49,7 +64,7 @@ const App: React.FC = () => {
       }}
     >
       <div style={{ flex: "1 1 auto" }}>
-        <LogMARChart ref={chartRef} />
+        <LogMARChart ref={chartRef} calibrationData={calibrationData} />
       </div>
       <div
         style={{
