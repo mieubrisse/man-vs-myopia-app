@@ -13,7 +13,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
 
   // Load existing calibration on component mount
   useEffect(() => {
-    const existingCalibration = localStorage.getItem("calibrationHeight");
+    const existingCalibration = localStorage.getItem("fontHeightMm");
     if (existingCalibration) {
       setHeightMm(existingCalibration);
       setHasExistingCalibration(true);
@@ -37,7 +37,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
     setError("");
 
     // Save calibration to localStorage
-    localStorage.setItem("calibrationHeight", heightMm);
+    localStorage.setItem("fontHeightMm", heightMm);
 
     // Show success toast
     setShowToast(true);
@@ -45,7 +45,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
   };
 
   const handleDeleteCalibration = () => {
-    localStorage.removeItem("calibrationHeight");
+    localStorage.removeItem("fontHeightMm");
     setHeightMm("");
     setHasExistingCalibration(false);
 
@@ -68,7 +68,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
 
       <div className="calibration-container">
         <div className="calibration-left">
-          <h1>Calibration</h1>
+          <h1>Font Size Calibration</h1>
 
           {hasExistingCalibration && (
             <div className="existing-calibration">
