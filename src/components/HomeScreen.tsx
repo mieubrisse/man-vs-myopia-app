@@ -4,11 +4,13 @@ import "./HomeScreen.css";
 interface HomeScreenProps {
   onStartCalibration: () => void;
   onStartAssessment: () => void;
+  onViewConfigurations: () => void;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartCalibration,
   onStartAssessment,
+  onViewConfigurations,
 }) => {
   const [hasCalibration, setHasCalibration] = useState(false);
 
@@ -44,6 +46,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
               <p>
                 Measure the calibration letter to ensure accurate assessment
               </p>
+            </div>
+          </button>
+
+          <button
+            className="home-option configurations-option"
+            onClick={onViewConfigurations}
+          >
+            <div className="option-icon">⚙️</div>
+            <div className="option-content">
+              <h3>Viewing Configurations</h3>
+              <p>Manage your viewing configurations for different distances</p>
             </div>
           </button>
 

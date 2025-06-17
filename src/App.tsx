@@ -5,8 +5,13 @@ import LogMARChart from "./components/LogMARChart";
 import SpeechRecognizer from "./components/SpeechRecognizer";
 import CalibrationScreen from "./components/CalibrationScreen";
 import HomeScreen from "./components/HomeScreen";
+import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScreen";
 
-type AppScreen = "home" | "calibration" | "assessment";
+type AppScreen =
+  | "home"
+  | "calibration"
+  | "assessment"
+  | "viewingConfigurations";
 
 const App: React.FC = () => {
   const chartRef = useRef<LogMARChartHandle>(null);
@@ -35,6 +40,10 @@ const App: React.FC = () => {
     setCurrentScreen("assessment");
   };
 
+  const handleViewConfigurations = () => {
+    setCurrentScreen("viewingConfigurations");
+  };
+
   const handleGoHome = () => {
     setCurrentScreen("home");
   };
@@ -44,12 +53,17 @@ const App: React.FC = () => {
       <HomeScreen
         onStartCalibration={handleStartCalibration}
         onStartAssessment={handleStartAssessment}
+        onViewConfigurations={handleViewConfigurations}
       />
     );
   }
 
   if (currentScreen === "calibration") {
     return <CalibrationScreen onGoHome={handleGoHome} />;
+  }
+
+  if (currentScreen === "viewingConfigurations") {
+    return <ViewingConfigurationsScreen onGoHome={handleGoHome} />;
   }
 
   return (
