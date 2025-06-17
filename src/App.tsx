@@ -6,12 +6,14 @@ import SpeechRecognizer from "./components/SpeechRecognizer";
 import CalibrationScreen from "./components/CalibrationScreen";
 import HomeScreen from "./components/HomeScreen";
 import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScreen";
+import ViewingConfigurationSelectionScreen from "./components/ViewingConfigurationSelectionScreen";
 
 type AppScreen =
   | "home"
   | "calibration"
   | "assessment"
-  | "viewingConfigurations";
+  | "viewingConfigurations"
+  | "viewingConfigurationSelection";
 
 const App: React.FC = () => {
   const chartRef = useRef<LogMARChartHandle>(null);
@@ -26,6 +28,10 @@ const App: React.FC = () => {
   };
 
   const handleStartAssessment = () => {
+    setCurrentScreen("viewingConfigurationSelection");
+  };
+
+  const handleViewingConfigurationSelected = () => {
     // Get calibration data from localStorage
     const fontHeightMm = localStorage.getItem("fontHeightMm");
     if (fontHeightMm) {
@@ -37,6 +43,7 @@ const App: React.FC = () => {
         measuredHeightMm,
       });
     }
+
     setCurrentScreen("assessment");
   };
 
@@ -64,6 +71,15 @@ const App: React.FC = () => {
 
   if (currentScreen === "viewingConfigurations") {
     return <ViewingConfigurationsScreen onGoHome={handleGoHome} />;
+  }
+
+  if (currentScreen === "viewingConfigurationSelection") {
+    return (
+      <ViewingConfigurationSelectionScreen
+        onGoHome={handleGoHome}
+        onStartAssessment={handleViewingConfigurationSelected}
+      />
+    );
   }
 
   return (
