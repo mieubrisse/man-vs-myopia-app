@@ -4,16 +4,36 @@ import type { LogMARChartHandle } from "./components/LogMARChart";
 import LogMARChart from "./components/LogMARChart";
 import SpeechRecognizer from "./components/SpeechRecognizer";
 import CalibrationScreen from "./components/CalibrationScreen";
+import HomeScreen from "./components/HomeScreen";
+
+type AppScreen = "home" | "calibration" | "assessment";
 
 const App: React.FC = () => {
   const chartRef = useRef<LogMARChartHandle>(null);
-  const [isCalibrated, setIsCalibrated] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
 
-  const handleCalibrationComplete = () => {
-    setIsCalibrated(true);
+  const handleStartCalibration = () => {
+    setCurrentScreen("calibration");
   };
 
-  if (!isCalibrated) {
+  const handleCalibrationComplete = () => {
+    setCurrentScreen("assessment");
+  };
+
+  const handleStartAssessment = () => {
+    setCurrentScreen("assessment");
+  };
+
+  if (currentScreen === "home") {
+    return (
+      <HomeScreen
+        onStartCalibration={handleStartCalibration}
+        onStartAssessment={handleStartAssessment}
+      />
+    );
+  }
+
+  if (currentScreen === "calibration") {
     return (
       <CalibrationScreen onCalibrationComplete={handleCalibrationComplete} />
     );
