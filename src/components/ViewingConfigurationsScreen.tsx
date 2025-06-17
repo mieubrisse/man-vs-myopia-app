@@ -84,6 +84,17 @@ const ViewingConfigurationsScreen: React.FC<
     setNewConfigDistance("");
   };
 
+  const handleDeleteConfiguration = (configId: string) => {
+    const updatedConfigurations = configurations.filter(
+      (config) => config.id !== configId
+    );
+    setConfigurations(updatedConfigurations);
+    localStorage.setItem(
+      "viewingConfigurations",
+      JSON.stringify(updatedConfigurations)
+    );
+  };
+
   return (
     <div className="viewing-configurations-screen">
       <div className="home-link">
@@ -99,62 +110,81 @@ const ViewingConfigurationsScreen: React.FC<
           screen.
         </p>
 
-        <div className="add-configuration-section">
-          <h2>Add New Configuration</h2>
-          <form
-            onSubmit={handleAddConfiguration}
-            className="add-configuration-form"
-          >
-            <div className="form-row">
-              <div className="input-group">
-                <label htmlFor="config-name">Configuration Name:</label>
-                <input
-                  id="config-name"
-                  type="text"
-                  value={newConfigName}
-                  onChange={(e) => setNewConfigName(e.target.value)}
-                  placeholder="e.g., Desktop, Bedroom, Office"
-                  className="config-input"
-                />
-              </div>
+        <div className="viewing-configurations-content">
+          <div className="left-column">
+            <div className="add-configuration-section">
+              <h2>Add New Configuration</h2>
+              <form
+                onSubmit={handleAddConfiguration}
+                className="add-configuration-form"
+              >
+                <div className="form-row">
+                  <div className="input-group">
+                    <label htmlFor="config-name">Configuration Name:</label>
+                    <input
+                      id="config-name"
+                      type="text"
+                      value={newConfigName}
+                      onChange={(e) => setNewConfigName(e.target.value)}
+                      placeholder="e.g., Desktop, Bedroom, Office"
+                      className="config-input"
+                    />
+                  </div>
 
-              <div className="input-group">
-                <label htmlFor="config-distance">Distance (centimeters):</label>
-                <input
-                  id="config-distance"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={newConfigDistance}
-                  onChange={(e) => setNewConfigDistance(e.target.value)}
-                  placeholder="e.g., 60.0"
-                  className="config-input"
-                />
-              </div>
-            </div>
-
-            {error && <div className="error-message">{error}</div>}
-
-            <button type="submit" className="add-configuration-button">
-              Add Configuration
-            </button>
-          </form>
-        </div>
-
-        <div className="configurations-list">
-          <h2>Your Configurations</h2>
-          {configurations.length === 0 ? (
-            <p className="no-configurations">No configurations added yet.</p>
-          ) : (
-            <div className="configurations-grid">
-              {configurations.map((config) => (
-                <div key={config.id} className="configuration-card">
-                  <h3>{config.name}</h3>
-                  <p>{config.distanceCentimeters}cm from screen</p>
+                  <div className="input-group">
+                    <label htmlFor="config-distance">
+                      Distance (centimeters):
+                    </label>
+                    <input
+                      id="config-distance"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={newConfigDistance}
+                      onChange={(e) => setNewConfigDistance(e.target.value)}
+                      placeholder="e.g., 60.0"
+                      className="config-input"
+                    />
+                  </div>
                 </div>
-              ))}
+
+                {error && <div className="error-message">{error}</div>}
+
+                <button type="submit" className="add-configuration-button">
+                  Add Configuration
+                </button>
+              </form>
             </div>
-          )}
+          </div>
+
+          <div className="right-column">
+            <div className="configurations-list">
+              <h2>Your Configurations</h2>
+              {configurations.length === 0 ? (
+                <p className="no-configurations">
+                  No configurations added yet.
+                </p>
+              ) : (
+                <div className="configurations-list-items">
+                  {configurations.map((config) => (
+                    <div key={config.id} className="configuration-card">
+                      <div className="configuration-content">
+                        <h3>{config.name}</h3>
+                        <p>{config.distanceCentimeters}cm from screen</p>
+                      </div>
+                      <button
+                        className="delete-configuration-button"
+                        onClick={() => handleDeleteConfiguration(config.id)}
+                        title="Delete configuration"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

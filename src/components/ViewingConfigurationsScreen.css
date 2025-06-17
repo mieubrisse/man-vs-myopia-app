@@ -37,7 +37,7 @@
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   padding: 3rem;
-  max-width: 800px;
+  max-width: 1200px;
   width: 100%;
   margin-top: 2rem;
 }
@@ -58,8 +58,23 @@
   text-align: center;
 }
 
+.viewing-configurations-content {
+  display: flex;
+  gap: 3rem;
+  align-items: flex-start;
+}
+
+.left-column {
+  flex: 1;
+  max-width: 400px;
+}
+
+.right-column {
+  flex: 1;
+  min-width: 300px;
+}
+
 .add-configuration-section {
-  margin-bottom: 3rem;
   padding: 2rem;
   background: #f8f9fa;
   border-radius: 8px;
@@ -81,7 +96,8 @@
 
 .form-row {
   display: flex;
-  gap: 1.5rem;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .input-group {
@@ -152,9 +168,9 @@
   padding: 2rem;
 }
 
-.configurations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+.configurations-list-items {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
@@ -164,24 +180,43 @@
   border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
 }
 
-.configuration-card:hover {
-  border-color: #007bff;
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+.configuration-content {
+  flex: 1;
 }
 
-.configuration-card h3 {
+.configuration-content h3 {
   color: #333;
   margin: 0 0 0.5rem 0;
   font-size: 1.2rem;
   font-weight: 600;
 }
 
-.configuration-card p {
+.configuration-content p {
   color: #666;
   margin: 0;
   font-size: 0.95rem;
+}
+
+.delete-configuration-button {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.delete-configuration-button:hover {
+  background: #c82333;
 }
 
 @media (max-width: 768px) {
@@ -194,12 +229,21 @@
     font-size: 2rem;
   }
 
+  .viewing-configurations-content {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .left-column {
+    max-width: none;
+  }
+
+  .right-column {
+    min-width: auto;
+  }
+
   .form-row {
     flex-direction: column;
     gap: 1rem;
-  }
-
-  .configurations-grid {
-    grid-template-columns: 1fr;
   }
 }
