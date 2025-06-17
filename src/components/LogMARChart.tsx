@@ -16,9 +16,16 @@ interface CalibrationData {
   measuredHeightMm: number;
 }
 
+interface ViewingConfiguration {
+  id: string;
+  name: string;
+  distanceCentimeters: number;
+}
+
 interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
   calibrationData?: CalibrationData | null;
+  viewingConfiguration?: ViewingConfiguration | null;
 }
 
 export interface LogMARChartHandle {
@@ -27,7 +34,7 @@ export interface LogMARChartHandle {
 }
 
 const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
-  ({ onLetterValidated, calibrationData }, ref) => {
+  ({ onLetterValidated, calibrationData, viewingConfiguration }, ref) => {
     const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
     const NUM_LETTERS_PER_LINE = 5;
     const NUM_ROWS = 14; // Based on the length of logMARValues (now hardcoded as per new structure)
@@ -35,14 +42,39 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
     const [allLetters, setAllLetters] = useState<LetterState[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Log calibration data when component mounts
+    // Log calibration and viewing configuration data when component mounts
     useEffect(() => {
+      console.log("=== Assessment Configuration ===");
+
       if (calibrationData) {
-        console.log("Assessment loaded with calibration data:");
-        console.log("Measured height (px):", calibrationData.measuredHeightPx);
-        console.log("Measured height (mm):", calibrationData.measuredHeightMm);
+        console.log("Font Size Calibration:");
+        console.log(
+          "  - Measured height (px):",
+          calibrationData.measuredHeightPx
+        );
+        console.log(
+          "  - Measured height (cm):",
+          (calibrationData.measuredHeightMm / 10).toFixed(1)
+        );
+      } else {
+        console.log("Font Size Calibration: Not available");
       }
-    }, [calibrationData]);
+
+      if (viewingConfiguration) {
+        console.log("Viewing Configuration:");
+        console.log("  - UUID:", viewingConfiguration.id);
+        console.log("  - Name:", viewingConfiguration.name);
+        console.log(
+          "  - Distance:",
+          viewingConfiguration.distanceCentimeters,
+          "cm from screen"
+        );
+      } else {
+        console.log("Viewing Configuration: Not available");
+      }
+
+      console.log("================================");
+    }, [calibrationData, viewingConfiguration]);
 
     // Initialize the chart with random letters (only actual letters, no spacers)
     useEffect(() => {
