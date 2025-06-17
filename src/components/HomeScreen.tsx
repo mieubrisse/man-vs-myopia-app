@@ -14,7 +14,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // Check for existing calibration on component mount
   useEffect(() => {
-    const existingCalibration = localStorage.getItem("calibrationHeight");
+    const existingCalibration = localStorage.getItem("fontHeightMm");
     setHasCalibration(!!existingCalibration);
   }, []);
 
@@ -40,7 +40,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           >
             <div className="option-icon">📏</div>
             <div className="option-content">
-              <h3>Calibration</h3>
+              <h3>Font Size Calibration</h3>
               <p>
                 Measure the calibration letter to ensure accurate assessment
               </p>
