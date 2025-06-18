@@ -5,14 +5,14 @@ interface AssessmentResultsScreenProps {
   onGoHome: () => void;
   logMARScore: number;
   correctLetters: number;
-  totalLetters: number;
+  attemptedLetters: number;
 }
 
 const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
   onGoHome,
   logMARScore,
   correctLetters,
-  totalLetters,
+  attemptedLetters,
 }) => {
   const getVisionLevel = (score: number): string => {
     if (score <= 0.0) return "Excellent";
@@ -55,21 +55,12 @@ const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
           <div className="details-section">
             <h3>Assessment Details</h3>
             <div className="detail-row">
-              <span className="detail-label">Correct Letters:</span>
+              <span className="detail-label">Letters Correct:</span>
               <span className="detail-value">{correctLetters}</span>
             </div>
             <div className="detail-row">
-              <span className="detail-label">Total Letters:</span>
-              <span className="detail-value">{totalLetters}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Accuracy:</span>
-              <span className="detail-value">
-                {totalLetters > 0
-                  ? ((correctLetters / totalLetters) * 100).toFixed(1)
-                  : 0}
-                %
-              </span>
+              <span className="detail-label">Letters Attempted:</span>
+              <span className="detail-value">{attemptedLetters}</span>
             </div>
           </div>
         </div>

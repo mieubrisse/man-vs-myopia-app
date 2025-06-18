@@ -34,6 +34,7 @@ const App: React.FC = () => {
     logMARScore: number;
     correctLetters: number;
     totalLetters: number;
+    attemptedLetters: number;
   } | null>(null);
 
   const handleStartCalibration = () => {
@@ -79,6 +80,7 @@ const App: React.FC = () => {
     logMARScore: number;
     correctLetters: number;
     totalLetters: number;
+    attemptedLetters: number;
   }) => {
     setAssessmentResults(results);
     setCurrentScreen("assessmentResults");
@@ -117,41 +119,45 @@ const App: React.FC = () => {
         onGoHome={handleGoHome}
         logMARScore={assessmentResults?.logMARScore || 0}
         correctLetters={assessmentResults?.correctLetters || 0}
-        totalLetters={assessmentResults?.totalLetters || 0}
+        attemptedLetters={assessmentResults?.attemptedLetters || 0}
       />
     );
   }
 
-  return (
-    <div
-      className="app"
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        gap: "2rem",
-        padding: "2rem",
-        alignItems: "flex-start",
-      }}
-    >
-      <div style={{ flex: "1 1 auto" }}>
-        <LogMARChart
-          ref={chartRef}
-          calibrationData={calibrationData}
-          viewingConfiguration={selectedViewingConfiguration}
-          onAssessmentComplete={handleAssessmentComplete}
-        />
-      </div>
+  if (currentScreen === "assessment") {
+    return (
       <div
+        className="app"
         style={{
-          flex: "0 0 400px",
-          position: "sticky",
-          top: "2rem",
+          display: "flex",
+          flexDirection: "row",
+          gap: "2rem",
+          padding: "2rem",
+          alignItems: "flex-start",
         }}
       >
-        <SpeechRecognizer chartRef={chartRef} />
+        <div style={{ flex: "1 1 auto" }}>
+          <LogMARChart
+            ref={chartRef}
+            calibrationData={calibrationData}
+            viewingConfiguration={selectedViewingConfiguration}
+            onAssessmentComplete={handleAssessmentComplete}
+          />
+        </div>
+        <div
+          style={{
+            flex: "0 0 400px",
+            position: "sticky",
+            top: "2rem",
+          }}
+        >
+          <SpeechRecognizer chartRef={chartRef} />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 };
 
 export default App;

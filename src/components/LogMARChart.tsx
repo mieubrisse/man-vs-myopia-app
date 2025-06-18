@@ -30,6 +30,7 @@ interface LogMARChartProps {
     logMARScore: number;
     correctLetters: number;
     totalLetters: number;
+    attemptedLetters: number;
   }) => void;
 }
 
@@ -169,11 +170,15 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
       const correctLetters = allLetters.filter(
         (letter) => letter.status === "correct"
       ).length;
+      const attemptedLetters = allLetters.filter(
+        (letter) => letter.status === "correct" || letter.status === "incorrect"
+      ).length;
       const totalLetters = allLetters.length;
       const logMARScore = 1.1 - correctLetters * 0.02;
 
       console.log("Assessment finished");
       console.log(`Correct letters: ${correctLetters}`);
+      console.log(`Attempted letters: ${attemptedLetters}`);
       console.log(`LogMAR score: ${logMARScore.toFixed(2)}`);
 
       // Call the callback with results
@@ -181,6 +186,7 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
         logMARScore,
         correctLetters,
         totalLetters,
+        attemptedLetters,
       });
     };
 
