@@ -97,6 +97,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   const [allLetters, setAllLetters] = useState<LetterState[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentRow, setCurrentRow] = useState(0);
 
   // Speech recognition state
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -113,6 +114,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     ALPHA: "A",
     BRAVO: "B",
     CHARLIE: "C",
+    "CHARLIE'S": "C",
     DELTA: "D",
     ECHO: "E",
     FOXTROT: "F",
@@ -129,6 +131,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     QUEBEC: "Q",
     ROMEO: "R",
     SIERRA: "S",
+    CIARA: "S",
     TANGO: "T",
     UNIFORM: "U",
     VICTOR: "V",
@@ -494,31 +497,108 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     setCurrentIndex(0);
   }, []);
 
+  // When a row is completed, advance to the next row
+  useEffect(() => {
+    if (allLetters.length === 0) return;
+    // Check if all letters in the current row are not 'pending' or 'current'
+    const startIdx = currentRow * NUM_LETTERS_PER_LINE;
+    const endIdx = startIdx + NUM_LETTERS_PER_LINE;
+    const rowLetters = allLetters.slice(startIdx, endIdx);
+    const allAttempted = rowLetters.every(
+      (l) => l.status === "correct" || l.status === "incorrect"
+    );
+    if (allAttempted && currentRow < NUM_ROWS - 1) {
+      setCurrentRow(currentRow + 1);
+      // Set the first letter of the next row to 'current' if not already set
+      setAllLetters((prev) => {
+        const updated = [...prev];
+        const nextRowStart = (currentRow + 1) * NUM_LETTERS_PER_LINE;
+        if (
+          updated[nextRowStart] &&
+          updated[nextRowStart].status === "pending"
+        ) {
+          updated[nextRowStart].status = "current";
+        }
+        return updated;
+      });
+    }
+  }, [allLetters, currentRow]);
+
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "row",
-        alignItems: "flex-start",
-        width: "100%",
-        gap: "2rem",
+        flexDirection: "column",
+        alignItems: "center",
+        width: "100vw",
+        minHeight: "100vh",
+        margin: 0,
+        padding: 0,
+        boxSizing: "border-box",
       }}
     >
+      {/* Speech Recognition Debug Info (fixed at top) */}
       <div
         style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          zIndex: 1000,
+          padding: "1rem",
+          backgroundColor: "#f0f0f0",
+          borderBottom: "2px solid #ccc",
+          fontFamily: "monospace",
+          fontSize: "1rem",
+          maxHeight: "200px",
+          overflowY: "auto",
+        }}
+      >
+        <div
+          style={{
+            marginBottom: "0.5rem",
+            fontWeight: "bold",
+            fontSize: "1.1rem",
+          }}
+        >
+          Speech Recognition Debug Info:
+        </div>
+        {debugInfo.length === 0 ? (
+          <div style={{ color: "#666" }}>Waiting for speech input...</div>
+        ) : (
+          debugInfo.map((info, index) => (
+            <div
+              key={info.timestamp}
+              style={{
+                marginBottom: "0.5rem",
+                padding: "0.25rem",
+                backgroundColor:
+                  index === debugInfo.length - 1 ? "#e0e0e0" : "transparent",
+              }}
+            >
+              {`[${index + 1}] "${info.transcript}" (${(
+                info.confidence * 100
+              ).toFixed(1)}% confidence)`}
+              {info.utterance && ` → Detected utterance: "${info.utterance}"`}
+              {!info.isFinal && " (interim)"}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Centered chart row below debug box */}
+      <div
+        style={{
+          position: "relative",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          flex: "1",
+          justifyContent: "center",
+          width: "100vw",
+          minHeight: "100vh",
+          // No marginTop! Chart row is always centered, debug box will occlude if needed
         }}
       >
-        {calibrationData && (
-          <div className="calibration-info">
-            {calibrationData.measuredHeightPx}px ={" "}
-            {calibrationData.measuredHeightCm}cm
-          </div>
-        )}
-
         <div
           style={{
             display: "flex",
@@ -527,16 +607,16 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           }}
         >
           {allLetters.length > 0 && letterSizes ? (
-            Array.from({ length: NUM_ROWS }).map((_, rowIndex) => {
-              // Calculate letter size for this row (1.0 LogMAR at top, decreasing by 0.1 each row)
+            (() => {
+              const rowIndex = currentRow;
               const letterSize = letterSizes[rowIndex] || letterSizes[0];
-              // Debug logging for each row
+              // Debug logging for the row
               console.log(
-                `Row ${rowIndex}: LogMAR ${(1.0 - rowIndex * 0.1).toFixed(
-                  1
-                )}, Calculated Size: ${letterSize}px`
+                `Current Row ${rowIndex}: LogMAR ${(
+                  1.0 -
+                  rowIndex * 0.1
+                ).toFixed(1)}, Calculated Size: ${letterSize}px`
               );
-
               return (
                 <div
                   key={rowIndex}
@@ -577,59 +657,11 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                   )}
                 </div>
               );
-            })
+            })()
           ) : (
             <div>Loading chart...</div> // Or any other loading indicator
           )}
         </div>
-      </div>
-
-      {/* Speech Recognition Debug Info */}
-      <div
-        style={{
-          flex: "0 0 400px",
-          padding: "1rem",
-          backgroundColor: "#f0f0f0",
-          borderRadius: "4px",
-          fontFamily: "monospace",
-          fontSize: "1rem",
-          border: "2px solid #ccc",
-          maxHeight: "80vh",
-          overflowY: "auto",
-          position: "sticky",
-          top: "2rem",
-        }}
-      >
-        <div
-          style={{
-            marginBottom: "0.5rem",
-            fontWeight: "bold",
-            fontSize: "1.1rem",
-          }}
-        >
-          Speech Recognition Debug Info:
-        </div>
-        {debugInfo.length === 0 ? (
-          <div style={{ color: "#666" }}>Waiting for speech input...</div>
-        ) : (
-          debugInfo.map((info, index) => (
-            <div
-              key={info.timestamp}
-              style={{
-                marginBottom: "0.5rem",
-                padding: "0.25rem",
-                backgroundColor:
-                  index === debugInfo.length - 1 ? "#e0e0e0" : "transparent",
-              }}
-            >
-              {`[${index + 1}] "${info.transcript}" (${(
-                info.confidence * 100
-              ).toFixed(1)}% confidence)`}
-              {info.utterance && ` → Detected utterance: "${info.utterance}"`}
-              {!info.isFinal && " (interim)"}
-            </div>
-          ))
-        )}
       </div>
     </div>
   );
