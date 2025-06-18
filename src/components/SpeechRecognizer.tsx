@@ -64,6 +64,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
   // console.log('SpeechRecognizer component rendered'); // Removed debug log
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
+  const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
 
   // Common ways people might say each letter or command
   const RECOGNIZED_UTTERANCE_MAPPINGS: { [key: string]: string[] } = {
@@ -125,7 +126,10 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
 
       recognition.onend = () => {
         console.log("Speech recognition ended");
-        recognition.start(); // Re-enabled for continuous recognition
+        // Only restart if the assessment is not finished
+        if (!isAssessmentFinished && recognitionRef.current) {
+          recognition.start(); // Re-enabled for continuous recognition
+        }
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -162,6 +166,7 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
         if (result.isFinal && utterance && chartRef.current) {
           console.log("About to call guessLetter with:", utterance);
           if (utterance === "FINISH") {
+            setIsAssessmentFinished(true);
             chartRef.current.finishAssessment();
             // Stop the recognition engine when assessment is finished
             if (recognitionRef.current) {
@@ -183,9 +188,19 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
       // console.log('SpeechRecognizer useEffect cleanup'); // Removed debug log
       if (recognitionRef.current) {
         recognitionRef.current.stop();
+        recognitionRef.current = null;
       }
     };
   }, [chartRef]);
+
+  // Additional cleanup effect for when assessment is finished
+  useEffect(() => {
+    if (isAssessmentFinished && recognitionRef.current) {
+      console.log("Assessment finished, stopping speech recognition");
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+  }, [isAssessmentFinished]);
 
   return (
     <div
