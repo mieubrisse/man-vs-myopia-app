@@ -106,6 +106,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   // Use refs to store current state to avoid stale closures
   const currentIndexRef = useRef<number>(0);
   const allLettersRef = useRef<LetterState[]>([]);
+  const expectedNextIndexRef = useRef<number>(0);
 
   // Military alphabet mappings only
   const MILITARY_ALPHABET_MAPPINGS: { [key: string]: string } = {
@@ -191,6 +192,11 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     allLettersRef.current = allLetters;
   }, [allLetters]);
 
+  // Initialize expected next index when component starts
+  useEffect(() => {
+    expectedNextIndexRef.current = 0;
+  }, []);
+
   // Initialize speech recognition
   useEffect(() => {
     if (!window.webkitSpeechRecognition) {
@@ -259,8 +265,10 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         if (result.isFinal && recognizedLetters.length > 0) {
           console.log("Processing recognized letters:", recognizedLetters);
 
-          // Process each recognized letter sequentially
-          const processNextLetter = (letterIndex: number) => {
+          // Process letters sequentially using index tracking
+          let letterIndex = 0;
+
+          const processNextLetter = () => {
             if (letterIndex >= recognizedLetters.length) {
               return; // All letters processed
             }
@@ -274,69 +282,79 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               if (recognitionRef.current) {
                 recognitionRef.current.stop();
               }
-              return; // Exit early if FINISH is detected
-            } else {
-              // Process letter guess
-              const currentIndex = currentIndexRef.current;
-              const allLetters = allLettersRef.current;
+              return;
+            }
 
-              console.log(
-                "Processing letter guess:",
-                letter,
-                "current index:",
-                currentIndex,
-                "letter index in batch:",
-                letterIndex
-              );
+            const currentIndex = currentIndexRef.current;
+            const allLetters = allLettersRef.current;
 
-              if (currentIndex < allLetters.length) {
-                const currentLetterState = allLetters[currentIndex];
-                const isCorrect = letter === currentLetterState.char;
+            console.log(
+              "Processing letter:",
+              letter,
+              "current index:",
+              currentIndex,
+              "expected next index:",
+              expectedNextIndexRef.current,
+              "letter index:",
+              letterIndex
+            );
 
-                console.log("Letter comparison:", {
-                  guessed: letter,
-                  actual: currentLetterState.char,
-                  isCorrect,
-                });
+            // Only process if we're at the expected position
+            if (
+              currentIndex === expectedNextIndexRef.current &&
+              currentIndex < allLetters.length
+            ) {
+              const currentLetterState = allLetters[currentIndex];
+              const isCorrect = letter === currentLetterState.char;
 
-                // Update the letter state
-                setAllLetters((prevAllLetters) => {
-                  const newAllLetters = [...prevAllLetters];
-                  if (isCorrect) {
-                    newAllLetters[currentIndex].status = "correct";
-                  } else {
-                    newAllLetters[currentIndex].status = "incorrect";
-                  }
+              console.log("Letter comparison:", {
+                guessed: letter,
+                actual: currentLetterState.char,
+                isCorrect,
+              });
 
-                  const nextIndex = currentIndex + 1;
+              // Update the letter state and advance to next letter
+              setAllLetters((prevAllLetters) => {
+                const newAllLetters = [...prevAllLetters];
+                if (isCorrect) {
+                  newAllLetters[currentIndex].status = "correct";
+                } else {
+                  newAllLetters[currentIndex].status = "incorrect";
+                }
 
-                  // If we've reached the end of the chart, stop
-                  if (nextIndex >= newAllLetters.length) {
-                    setCurrentIndex(newAllLetters.length); // Set to end to prevent further processing
-                    return newAllLetters;
-                  }
+                const nextIndex = currentIndex + 1;
 
-                  // Mark the next letter as current
-                  newAllLetters[nextIndex].status = "current";
-                  console.log("Next index set to:", nextIndex);
-
-                  setCurrentIndex(nextIndex); // Update the main index state
-
+                // If we've reached the end of the chart, stop
+                if (nextIndex >= newAllLetters.length) {
+                  setCurrentIndex(newAllLetters.length);
                   return newAllLetters;
-                });
+                }
 
-                onLetterValidated?.(isCorrect);
+                // Mark the next letter as current
+                newAllLetters[nextIndex].status = "current";
+                console.log("Next index set to:", nextIndex);
 
-                // Process the next letter after a short delay to allow state to update
-                setTimeout(() => {
-                  processNextLetter(letterIndex + 1);
-                }, 100);
-              }
+                setCurrentIndex(nextIndex);
+
+                return newAllLetters;
+              });
+
+              onLetterValidated?.(isCorrect);
+
+              // Update expected next index and move to next letter
+              expectedNextIndexRef.current = currentIndex + 1;
+              letterIndex++;
+
+              // Process next letter after state update
+              setTimeout(processNextLetter, 100);
+            } else {
+              // If we're not at the expected position, wait and try again
+              setTimeout(processNextLetter, 50);
             }
           };
 
-          // Start processing from the first letter
-          processNextLetter(0);
+          // Start processing
+          processNextLetter();
         }
       };
 
