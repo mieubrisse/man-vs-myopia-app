@@ -64,7 +64,7 @@ interface LetterState {
 
 interface CalibrationData {
   measuredHeightPx: number;
-  measuredHeightMm: number;
+  measuredHeightCm: number;
 }
 
 interface ViewingConfiguration {
@@ -392,7 +392,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       );
       console.log(
         "  - Measured height (cm):",
-        (calibrationData.measuredHeightMm / 10).toFixed(1)
+        calibrationData.measuredHeightCm
       );
     } else {
       console.log("Font Size Calibration: Not available");
@@ -413,6 +413,60 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
     console.log("================================");
   }, [calibrationData, viewingConfiguration]);
+
+  // Calculate LogMAR letter sizes based on viewing distance and calibration
+  const calculateLetterSizes = useCallback(() => {
+    if (!calibrationData || !viewingConfiguration) {
+      return null;
+    }
+
+    // Constants for LogMAR calculation
+    const LOGMAR_1_0_ARC_MINUTES = 10; // 1.0 LogMAR = 10 arc minutes
+    const LOGMAR_1_0_ANGLE_DEGREES = LOGMAR_1_0_ARC_MINUTES / 60; // Convert arc minutes to degrees
+
+    // Convert viewing distance from cm to meters for calculation
+    const viewingDistanceCm = viewingConfiguration.distanceCentimeters;
+
+    // Calculate the height of 1.0 LogMAR characters using geometry
+    // height = 2 * distance * tan(angle)
+    const logmar1_0AngleRadians = (LOGMAR_1_0_ANGLE_DEGREES * Math.PI) / 180; // Convert degrees to radians
+    const logmar1_0HeightCm =
+      2 * viewingDistanceCm * Math.tan(logmar1_0AngleRadians);
+
+    // Convert calibration data: measuredHeightPx = measuredHeightCm
+    const pixelsPerCm =
+      calibrationData.measuredHeightPx / calibrationData.measuredHeightCm;
+
+    // Calculate the pixel size for 1.0 LogMAR letters
+    const logmar1_0SizePx = logmar1_0HeightCm * pixelsPerCm;
+
+    // Calculate sizes for all LogMAR levels (1.0 at top, decreasing by 0.1 per row)
+    const letterSizes: number[] = [];
+    for (let i = 0; i < NUM_ROWS; i++) {
+      const logmarLevel = 1.0 - i * 0.1;
+      const sizeRatio = Math.pow(10, logmarLevel - 1.0); // Correct geometric progression
+      const letterSizePx = Math.round(logmar1_0SizePx * sizeRatio); // Round to nearest whole pixel
+      letterSizes.push(letterSizePx);
+    }
+
+    console.log("LogMAR letter sizes calculated:", {
+      viewingDistanceCm,
+      logmar1_0ArcMinutes: LOGMAR_1_0_ARC_MINUTES,
+      logmar1_0AngleDegrees: LOGMAR_1_0_ANGLE_DEGREES,
+      logmar1_0AngleRadians,
+      logmar1_0HeightCm,
+      logmar1_0SizePx,
+      letterSizes,
+    });
+
+    return letterSizes;
+  }, [calibrationData, viewingConfiguration]);
+
+  // Get letter sizes for the chart
+  const letterSizes = calculateLetterSizes();
+
+  // Debug: Log the full letterSizes array
+  console.log("Full letterSizes array:", letterSizes);
 
   // Initialize the chart with random letters (only actual letters, no spacers)
   useEffect(() => {
@@ -461,7 +515,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         {calibrationData && (
           <div className="calibration-info">
             {calibrationData.measuredHeightPx}px ={" "}
-            {calibrationData.measuredHeightMm}mm
+            {calibrationData.measuredHeightCm}cm
           </div>
         )}
 
@@ -472,33 +526,58 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             alignItems: "center",
           }}
         >
-          {allLetters.length > 0 ? (
-            Array.from({ length: NUM_ROWS }).map((_, rowIndex) => (
-              <div
-                key={rowIndex}
-                className="chart-row"
-                style={{ "--row-index": rowIndex } as React.CSSProperties}
-              >
-                {Array.from({ length: NUM_LETTERS_PER_LINE }).map(
-                  (_, colIndex) => {
-                    const itemIndex =
-                      rowIndex * NUM_LETTERS_PER_LINE + colIndex;
-                    const item = allLetters[itemIndex];
+          {allLetters.length > 0 && letterSizes ? (
+            Array.from({ length: NUM_ROWS }).map((_, rowIndex) => {
+              // Calculate letter size for this row (1.0 LogMAR at top, decreasing by 0.1 each row)
+              const letterSize = letterSizes[rowIndex] || letterSizes[0];
+              // Debug logging for each row
+              console.log(
+                `Row ${rowIndex}: LogMAR ${(1.0 - rowIndex * 0.1).toFixed(
+                  1
+                )}, Calculated Size: ${letterSize}px`
+              );
 
-                    return (
-                      <React.Fragment key={colIndex}>
-                        <span className={`letter ${item.status || ""}`}>
-                          {item.char}
-                        </span>
-                        {colIndex < NUM_LETTERS_PER_LINE - 1 && (
-                          <span className="spacer-char">C</span> // Spacer added here for display
-                        )}
-                      </React.Fragment>
-                    );
-                  }
-                )}
-              </div>
-            ))
+              return (
+                <div
+                  key={rowIndex}
+                  className="chart-row"
+                  style={{ "--row-index": rowIndex } as React.CSSProperties}
+                >
+                  {Array.from({ length: NUM_LETTERS_PER_LINE }).map(
+                    (_, colIndex) => {
+                      const itemIndex =
+                        rowIndex * NUM_LETTERS_PER_LINE + colIndex;
+                      const item = allLetters[itemIndex];
+
+                      return (
+                        <React.Fragment key={colIndex}>
+                          <span
+                            className={`letter ${item.status || ""}`}
+                            style={{
+                              fontSize: `${letterSize}px`,
+                              lineHeight: `${letterSize}px`,
+                            }}
+                          >
+                            {item.char}
+                          </span>
+                          {colIndex < NUM_LETTERS_PER_LINE - 1 && (
+                            <span
+                              className="spacer-char"
+                              style={{
+                                fontSize: `${letterSize}px`,
+                                lineHeight: `${letterSize}px`,
+                              }}
+                            >
+                              C
+                            </span>
+                          )}
+                        </React.Fragment>
+                      );
+                    }
+                  )}
+                </div>
+              );
+            })
           ) : (
             <div>Loading chart...</div> // Or any other loading indicator
           )}

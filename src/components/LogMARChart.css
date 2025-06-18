@@ -29,12 +29,11 @@
 }
 
 .letter {
-  /* Base size for the largest letters (LogMAR 1.0) */
-  font-size: calc(5.28px * pow(1.2589, calc(13 - var(--row-index))));
+  /* Font size is now set dynamically via inline styles */
   font-family: "Optician Sans", Arial, sans-serif;
   font-weight: bold;
   color: #000;
-  line-height: 1; /* Ensure letter box height is exactly its font-size */
+  line-height: inherit; /* Use the line-height set by the parent */
   margin: 0; /* Zero out all margins */
   padding: 0; /* Zero out all padding */
 }
@@ -45,10 +44,10 @@
 }
 
 .spacer-char {
-  font-size: calc(5.28px * pow(1.2589, calc(13 - var(--row-index))));
+  /* Font size is now set dynamically via inline styles */
   font-family: "Optician Sans", Arial, sans-serif;
   color: transparent; /* Make the character invisible */
-  line-height: 1;
+  line-height: inherit; /* Use the line-height set by the parent */
   margin: 0;
   padding: 0;
 }

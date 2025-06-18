@@ -19,7 +19,7 @@ const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
   const [calibrationData, setCalibrationData] = useState<{
     measuredHeightPx: number;
-    measuredHeightMm: number;
+    measuredHeightCm: number;
   } | null>(null);
   const [selectedViewingConfiguration, setSelectedViewingConfiguration] =
     useState<{
@@ -53,12 +53,11 @@ const App: React.FC = () => {
     const fontHeightCm = localStorage.getItem("fontHeightCm");
     if (fontHeightCm) {
       const measuredHeightCm = parseFloat(fontHeightCm);
-      const measuredHeightMm = measuredHeightCm * 10; // Convert cm to mm
       const measuredHeightPx = window.innerWidth > 600 ? 600 : 300; // 600px on desktop, 300px on mobile
 
       setCalibrationData({
         measuredHeightPx,
-        measuredHeightMm,
+        measuredHeightCm,
       });
     }
 
