@@ -57,11 +57,6 @@ interface DebugInfo {
   isFinal: boolean;
 }
 
-interface LetterState {
-  char: string;
-  status?: "correct" | "incorrect" | "current" | "pending";
-}
-
 interface CalibrationData {
   measuredHeightPx: number;
   measuredHeightCm: number;
@@ -91,13 +86,10 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   viewingConfiguration,
   onAssessmentComplete,
 }) => {
-  const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
   const NUM_LETTERS_PER_LINE = 5;
   const NUM_ROWS = 14; // Based on the length of logMARValues (now hardcoded as per new structure)
 
-  const [allLetters, setAllLetters] = useState<LetterState[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentRow, setCurrentRow] = useState(0);
 
   // Speech recognition state
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -106,7 +98,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   // Use refs to store current state to avoid stale closures
   const currentIndexRef = useRef<number>(0);
-  const allLettersRef = useRef<LetterState[]>([]);
   const expectedNextIndexRef = useRef<number>(0);
 
   // Military alphabet mappings only
@@ -190,10 +181,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   useEffect(() => {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
-
-  useEffect(() => {
-    allLettersRef.current = allLetters;
-  }, [allLetters]);
 
   // Initialize expected next index when component starts
   useEffect(() => {
@@ -417,112 +404,109 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     console.log("================================");
   }, [calibrationData, viewingConfiguration]);
 
-  // Calculate LogMAR letter sizes based on viewing distance and calibration
-  const calculateLetterSizes = useCallback(() => {
-    if (!calibrationData || !viewingConfiguration) {
-      return null;
-    }
-
+  // Helper to calculate letter size for a row
+  function getLetterSizePx(rowIndex: number) {
+    if (!calibrationData || !viewingConfiguration) return 0;
     // Constants for LogMAR calculation
     const LOGMAR_1_0_ARC_MINUTES = 10; // 1.0 LogMAR = 10 arc minutes
     const LOGMAR_1_0_ANGLE_DEGREES = LOGMAR_1_0_ARC_MINUTES / 60; // Convert arc minutes to degrees
-
-    // Convert viewing distance from cm to meters for calculation
     const viewingDistanceCm = viewingConfiguration.distanceCentimeters;
-
-    // Calculate the height of 1.0 LogMAR characters using geometry
-    // height = 2 * distance * tan(angle)
-    const logmar1_0AngleRadians = (LOGMAR_1_0_ANGLE_DEGREES * Math.PI) / 180; // Convert degrees to radians
+    const logmar1_0AngleRadians = (LOGMAR_1_0_ANGLE_DEGREES * Math.PI) / 180;
     const logmar1_0HeightCm =
       2 * viewingDistanceCm * Math.tan(logmar1_0AngleRadians);
-
-    // Convert calibration data: measuredHeightPx = measuredHeightCm
     const pixelsPerCm =
       calibrationData.measuredHeightPx / calibrationData.measuredHeightCm;
-
-    // Calculate the pixel size for 1.0 LogMAR letters
     const logmar1_0SizePx = logmar1_0HeightCm * pixelsPerCm;
+    const logmarLevel = 1.0 - rowIndex * 0.1;
+    const sizeRatio = Math.pow(10, logmarLevel - 1.0);
+    return Math.round(logmar1_0SizePx * sizeRatio);
+  }
 
-    // Calculate sizes for all LogMAR levels (1.0 at top, decreasing by 0.1 per row)
-    const letterSizes: number[] = [];
-    for (let i = 0; i < NUM_ROWS; i++) {
-      const logmarLevel = 1.0 - i * 0.1;
-      const sizeRatio = Math.pow(10, logmarLevel - 1.0); // Correct geometric progression
-      const letterSizePx = Math.round(logmar1_0SizePx * sizeRatio); // Round to nearest whole pixel
-      letterSizes.push(letterSizePx);
-    }
+  // Add new state for current row's letters and results
+  const [currentRowIndex, setCurrentRowIndex] = useState(0); // 0 = 1.0 LogMAR
+  const [currentRowLetters, setCurrentRowLetters] = useState<string[]>([]);
+  const [currentRowResults, setCurrentRowResults] = useState<
+    ("correct" | "incorrect" | null)[]
+  >([]);
+  const [completedRows, setCompletedRows] = useState<
+    {
+      rowIndex: number;
+      letters: string[];
+      results: ("correct" | "incorrect" | null)[];
+    }[]
+  >([]);
 
-    console.log("LogMAR letter sizes calculated:", {
-      viewingDistanceCm,
-      logmar1_0ArcMinutes: LOGMAR_1_0_ARC_MINUTES,
-      logmar1_0AngleDegrees: LOGMAR_1_0_ANGLE_DEGREES,
-      logmar1_0AngleRadians,
-      logmar1_0HeightCm,
-      logmar1_0SizePx,
-      letterSizes,
-    });
+  // Helper to generate random letters for a row
+  function generateRandomLetters(num: number) {
+    const possible = "CDEFHKNOVZ"; // or whatever your chart uses
+    return Array.from(
+      { length: num },
+      () => possible[Math.floor(Math.random() * possible.length)]
+    );
+  }
 
-    return letterSizes;
-  }, [calibrationData, viewingConfiguration]);
-
-  // Get letter sizes for the chart
-  const letterSizes = calculateLetterSizes();
-
-  // Debug: Log the full letterSizes array
-  console.log("Full letterSizes array:", letterSizes);
-
-  // Initialize the chart with random letters (only actual letters, no spacers)
+  // On mount or when currentRowIndex changes, generate new row letters
   useEffect(() => {
-    const initialAllLetters: LetterState[] = [];
-    for (let r = 0; r < NUM_ROWS; r++) {
-      for (let i = 0; i < NUM_LETTERS_PER_LINE; i++) {
-        const randomIndex = Math.floor(Math.random() * SLOAN_LETTERS.length);
-        initialAllLetters.push({
-          char: SLOAN_LETTERS[randomIndex],
-          status: "pending",
-        }); // Default to 'pending'
+    setCurrentRowLetters(generateRandomLetters(NUM_LETTERS_PER_LINE));
+    setCurrentRowResults(Array(NUM_LETTERS_PER_LINE).fill(null));
+  }, [currentRowIndex]);
+
+  // When the row is completed, check if we should advance or finish
+  useEffect(() => {
+    // Only run if at least one answer has been given (prevents running on mount)
+    if (currentRowResults.every((r) => r === null)) return;
+    if (currentRowResults.every((r) => r !== null)) {
+      const numCorrect = currentRowResults.filter(
+        (r) => r === "correct"
+      ).length;
+      setCompletedRows((prev) => [
+        ...prev,
+        {
+          rowIndex: currentRowIndex,
+          letters: currentRowLetters,
+          results: currentRowResults,
+        },
+      ]);
+      if (numCorrect >= 3) {
+        setCurrentRowIndex(currentRowIndex + 1);
+      } else {
+        // Finish test, call onAssessmentComplete
+        // Calculate results
+        const allRows = [
+          ...completedRows,
+          {
+            rowIndex: currentRowIndex,
+            letters: currentRowLetters,
+            results: currentRowResults,
+          },
+        ];
+        const correctLetters = allRows.reduce(
+          (sum, row) => sum + row.results.filter((r) => r === "correct").length,
+          0
+        );
+        const attemptedLetters = allRows.reduce(
+          (sum, row) =>
+            sum +
+            row.results.filter((r) => r === "correct" || r === "incorrect")
+              .length,
+          0
+        );
+        const totalLetters = allRows.reduce(
+          (sum, row) => sum + row.letters.length,
+          0
+        );
+        // LogMAR score: 1.1 - 0.02 per correct letter
+        const logMARScore = 1.1 - correctLetters * 0.02;
+        onAssessmentComplete?.({
+          logMARScore,
+          correctLetters,
+          attemptedLetters,
+          totalLetters,
+        });
       }
     }
-
-    if (initialAllLetters.length > 0) {
-      initialAllLetters[0].status = "current"; // First letter is 'current'
-    }
-
-    setAllLetters(initialAllLetters);
-    console.log(
-      "All letters initialized in useEffect:",
-      initialAllLetters.length,
-      initialAllLetters
-    );
-    setCurrentIndex(0);
-  }, []);
-
-  // When a row is completed, advance to the next row
-  useEffect(() => {
-    if (allLetters.length === 0) return;
-    // Check if all letters in the current row are not 'pending' or 'current'
-    const startIdx = currentRow * NUM_LETTERS_PER_LINE;
-    const endIdx = startIdx + NUM_LETTERS_PER_LINE;
-    const rowLetters = allLetters.slice(startIdx, endIdx);
-    const allAttempted = rowLetters.every(
-      (l) => l.status === "correct" || l.status === "incorrect"
-    );
-    if (allAttempted && currentRow < NUM_ROWS - 1) {
-      setCurrentRow(currentRow + 1);
-      // Set the first letter of the next row to 'current' if not already set
-      setAllLetters((prev) => {
-        const updated = [...prev];
-        const nextRowStart = (currentRow + 1) * NUM_LETTERS_PER_LINE;
-        if (
-          updated[nextRowStart] &&
-          updated[nextRowStart].status === "pending"
-        ) {
-          updated[nextRowStart].status = "current";
-        }
-        return updated;
-      });
-    }
-  }, [allLetters, currentRow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRowResults]);
 
   return (
     <div
@@ -606,61 +590,36 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             alignItems: "center",
           }}
         >
-          {allLetters.length > 0 && letterSizes ? (
-            (() => {
-              const rowIndex = currentRow;
-              const letterSize = letterSizes[rowIndex] || letterSizes[0];
-              // Debug logging for the row
-              console.log(
-                `Current Row ${rowIndex}: LogMAR ${(
-                  1.0 -
-                  rowIndex * 0.1
-                ).toFixed(1)}, Calculated Size: ${letterSize}px`
-              );
-              return (
-                <div
-                  key={rowIndex}
-                  className="chart-row"
-                  style={{ "--row-index": rowIndex } as React.CSSProperties}
+          <div className="chart-row">
+            {currentRowLetters.map((char, idx) => (
+              <React.Fragment key={idx}>
+                <span
+                  className={`letter ${currentRowResults[idx]}`}
+                  style={{
+                    fontSize: `${getLetterSizePx(currentRowIndex)}px`,
+                    lineHeight: `${getLetterSizePx(currentRowIndex)}px`,
+                  }}
                 >
-                  {Array.from({ length: NUM_LETTERS_PER_LINE }).map(
-                    (_, colIndex) => {
-                      const itemIndex =
-                        rowIndex * NUM_LETTERS_PER_LINE + colIndex;
-                      const item = allLetters[itemIndex];
-
-                      return (
-                        <React.Fragment key={colIndex}>
-                          <span
-                            className={`letter ${item.status || ""}`}
-                            style={{
-                              fontSize: `${letterSize}px`,
-                              lineHeight: `${letterSize}px`,
-                            }}
-                          >
-                            {item.char}
-                          </span>
-                          {colIndex < NUM_LETTERS_PER_LINE - 1 && (
-                            <span
-                              className="spacer-char"
-                              style={{
-                                fontSize: `${letterSize}px`,
-                                lineHeight: `${letterSize}px`,
-                              }}
-                            >
-                              C
-                            </span>
-                          )}
-                        </React.Fragment>
-                      );
-                    }
-                  )}
-                </div>
-              );
-            })()
-          ) : (
-            <div>Loading chart...</div> // Or any other loading indicator
-          )}
+                  {char}
+                </span>
+                {idx < currentRowLetters.length - 1 && (
+                  <span
+                    className="spacer-char"
+                    aria-hidden="true"
+                    style={{
+                      fontSize: `${getLetterSizePx(currentRowIndex)}px`,
+                      lineHeight: `${getLetterSizePx(currentRowIndex)}px`,
+                      color: "transparent",
+                      userSelect: "none",
+                      margin: 0,
+                    }}
+                  >
+                    C
+                  </span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
     </div>
