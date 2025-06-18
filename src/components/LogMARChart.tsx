@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import "./LogMARChart.css";
 
 // Speech Recognition interfaces
@@ -103,6 +103,10 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
   const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
 
+  // Use refs to store current state to avoid stale closures
+  const currentIndexRef = useRef<number>(0);
+  const allLettersRef = useRef<LetterState[]>([]);
+
   // Common ways people might say each letter or command
   const RECOGNIZED_UTTERANCE_MAPPINGS: { [key: string]: string[] } = {
     C: ["C", "SEE", "SEA", "CEE", "CHARLIE"],
@@ -133,6 +137,41 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
     return upperTranscript;
   };
+
+  // Handle finishing the assessment
+  const finishAssessment = useCallback(() => {
+    // Calculate LogMAR score: 1.1 - 0.02 per correct letter
+    const correctLetters = allLetters.filter(
+      (letter) => letter.status === "correct"
+    ).length;
+    const attemptedLetters = allLetters.filter(
+      (letter) => letter.status === "correct" || letter.status === "incorrect"
+    ).length;
+    const totalLetters = allLetters.length;
+    const logMARScore = 1.1 - correctLetters * 0.02;
+
+    console.log("Assessment finished");
+    console.log(`Correct letters: ${correctLetters}`);
+    console.log(`Attempted letters: ${attemptedLetters}`);
+    console.log(`LogMAR score: ${logMARScore.toFixed(2)}`);
+
+    // Call the callback with results
+    onAssessmentComplete?.({
+      logMARScore,
+      correctLetters,
+      totalLetters,
+      attemptedLetters,
+    });
+  }, [allLetters, onAssessmentComplete]);
+
+  // Update refs when state changes
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  useEffect(() => {
+    allLettersRef.current = allLetters;
+  }, [allLetters]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -200,7 +239,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         });
 
         if (result.isFinal && utterance) {
-          console.log("About to call guessLetter with:", utterance);
+          console.log("About to process utterance:", utterance);
           if (utterance === "FINISH") {
             setIsAssessmentFinished(true);
             finishAssessment();
@@ -209,7 +248,55 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               recognitionRef.current.stop();
             }
           } else {
-            guessLetter(utterance);
+            // Directly handle letter guess
+            const currentIndex = currentIndexRef.current;
+            const allLetters = allLettersRef.current;
+
+            console.log(
+              "Processing letter guess:",
+              utterance,
+              "current index:",
+              currentIndex
+            );
+
+            if (currentIndex < allLetters.length) {
+              const currentLetterState = allLetters[currentIndex];
+              const isCorrect = utterance === currentLetterState.char;
+
+              console.log("Letter comparison:", {
+                guessed: utterance,
+                actual: currentLetterState.char,
+                isCorrect,
+              });
+
+              // Update the letter state
+              setAllLetters((prevAllLetters) => {
+                const newAllLetters = [...prevAllLetters];
+                if (isCorrect) {
+                  newAllLetters[currentIndex].status = "correct";
+                } else {
+                  newAllLetters[currentIndex].status = "incorrect";
+                }
+
+                const nextIndex = currentIndex + 1;
+
+                // If we've reached the end of the chart, stop
+                if (nextIndex >= newAllLetters.length) {
+                  setCurrentIndex(newAllLetters.length); // Set to end to prevent further processing
+                  return newAllLetters;
+                }
+
+                // Mark the next letter as current
+                newAllLetters[nextIndex].status = "current";
+                console.log("Next index set to:", nextIndex);
+
+                setCurrentIndex(nextIndex); // Update the main index state
+
+                return newAllLetters;
+              });
+
+              onLetterValidated?.(isCorrect);
+            }
           }
         }
       };
@@ -225,7 +312,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         recognitionRef.current = null;
       }
     };
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   // Additional cleanup effect for when assessment is finished
   useEffect(() => {
@@ -295,80 +382,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     );
     setCurrentIndex(0);
   }, []);
-
-  // Handle a letter guess
-  const guessLetter = (letter: string) => {
-    console.log(
-      "guessLetter called with:",
-      letter,
-      "current index:",
-      currentIndex
-    );
-
-    setAllLetters((prevAllLetters) => {
-      const newAllLetters = [...prevAllLetters];
-      const currentLetterState = newAllLetters[currentIndex];
-
-      // No need to check for spacer here, as allLetters only contains actual letters
-      const isCorrect = letter === currentLetterState.char;
-      console.log("Letter comparison:", {
-        guessed: letter,
-        actual: currentLetterState.char,
-        isCorrect,
-      });
-
-      if (isCorrect) {
-        currentLetterState.status = "correct";
-      } else {
-        currentLetterState.status = "incorrect";
-      }
-
-      onLetterValidated?.(isCorrect);
-
-      const nextIndex = currentIndex + 1; // Simply move to the next letter
-
-      // If we've reached the end of the chart, stop
-      if (nextIndex >= newAllLetters.length) {
-        // No more letters to guess
-        setCurrentIndex(newAllLetters.length); // Set to end to prevent further processing
-        return newAllLetters;
-      }
-
-      // Mark the next letter as current
-      newAllLetters[nextIndex].status = "current";
-      console.log("Next index set to:", nextIndex);
-
-      setCurrentIndex(nextIndex); // Update the main index state
-
-      return newAllLetters;
-    });
-  };
-
-  // Handle finishing the assessment
-  const finishAssessment = () => {
-    // Calculate LogMAR score: 1.1 - 0.02 per correct letter
-    const correctLetters = allLetters.filter(
-      (letter) => letter.status === "correct"
-    ).length;
-    const attemptedLetters = allLetters.filter(
-      (letter) => letter.status === "correct" || letter.status === "incorrect"
-    ).length;
-    const totalLetters = allLetters.length;
-    const logMARScore = 1.1 - correctLetters * 0.02;
-
-    console.log("Assessment finished");
-    console.log(`Correct letters: ${correctLetters}`);
-    console.log(`Attempted letters: ${attemptedLetters}`);
-    console.log(`LogMAR score: ${logMARScore.toFixed(2)}`);
-
-    // Call the callback with results
-    onAssessmentComplete?.({
-      logMARScore,
-      correctLetters,
-      totalLetters,
-      attemptedLetters,
-    });
-  };
 
   return (
     <div
