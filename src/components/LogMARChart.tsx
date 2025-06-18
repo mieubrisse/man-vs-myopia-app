@@ -93,21 +93,24 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 }) => {
   const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
   const NUM_LETTERS_PER_LINE = 5;
-  const NUM_ROWS = 14; // Based on the length of logMARValues (now hardcoded as per new structure)
+  const NUM_ROWS = 14;
 
-  const [allLetters, setAllLetters] = useState<LetterState[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Only keep state for the current row's letters and their statuses
+  const [currentRowLetters, setCurrentRowLetters] = useState<LetterState[]>([]);
+  const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const [currentRow, setCurrentRow] = useState(0);
+  const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
+  const [score, setScore] = useState({
+    correctLetters: 0,
+    attemptedLetters: 0,
+  });
 
   // Speech recognition state
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
-  const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
-
-  // Use refs to store current state to avoid stale closures
-  const currentIndexRef = useRef<number>(0);
-  const allLettersRef = useRef<LetterState[]>([]);
-  const expectedNextIndexRef = useRef<number>(0);
+  const currentLetterIndexRef = useRef<number>(0);
+  const currentRowRef = useRef<number>(0);
+  const isAssessmentFinishedRef = useRef<boolean>(false);
 
   // Military alphabet mappings only
   const MILITARY_ALPHABET_MAPPINGS: { [key: string]: string } = {
@@ -157,48 +160,67 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     return recognizedLetters;
   };
 
+  // Helper to generate a row of random letters
+  const generateRowLetters = useCallback((): LetterState[] => {
+    return Array.from({ length: NUM_LETTERS_PER_LINE }, () => ({
+      char: SLOAN_LETTERS[Math.floor(Math.random() * SLOAN_LETTERS.length)],
+      status: "pending",
+    }));
+  }, []);
+
+  // Initialize the first row on mount
+  useEffect(() => {
+    setCurrentRowLetters((prev) => {
+      if (prev.length === 0) {
+        const row = generateRowLetters();
+        row[0].status = "current";
+        return row;
+      }
+      return prev;
+    });
+    setCurrentLetterIndex(0);
+    setCurrentRow(0);
+    setScore({ correctLetters: 0, attemptedLetters: 0 });
+    setIsAssessmentFinished(false);
+  }, [generateRowLetters]);
+
+  // Update refs when state changes
+  useEffect(() => {
+    currentLetterIndexRef.current = currentLetterIndex;
+    currentRowRef.current = currentRow;
+    isAssessmentFinishedRef.current = isAssessmentFinished;
+  }, [currentLetterIndex, currentRow, isAssessmentFinished]);
+
   // Handle finishing the assessment
   const finishAssessment = useCallback(() => {
-    // Use refs to get the current state instead of potentially stale state
-    const currentAllLetters = allLettersRef.current;
-
-    // Calculate LogMAR score: 1.1 - 0.02 per correct letter
-    const correctLetters = currentAllLetters.filter(
-      (letter) => letter.status === "correct"
-    ).length;
-    const attemptedLetters = currentAllLetters.filter(
-      (letter) => letter.status === "correct" || letter.status === "incorrect"
-    ).length;
-    const totalLetters = currentAllLetters.length;
+    const { correctLetters, attemptedLetters } = score;
+    const totalLetters = NUM_ROWS * NUM_LETTERS_PER_LINE;
     const logMARScore = 1.1 - correctLetters * 0.02;
-
-    console.log("Assessment finished");
-    console.log(`Correct letters: ${correctLetters}`);
-    console.log(`Attempted letters: ${attemptedLetters}`);
-    console.log(`LogMAR score: ${logMARScore.toFixed(2)}`);
-
-    // Call the callback with results
     onAssessmentComplete?.({
       logMARScore,
       correctLetters,
       totalLetters,
       attemptedLetters,
     });
-  }, [onAssessmentComplete]);
+  }, [score, onAssessmentComplete]);
 
-  // Update refs when state changes
-  useEffect(() => {
-    currentIndexRef.current = currentIndex;
-  }, [currentIndex]);
+  // Store stable references to functions for use in event handlers
+  const finishAssessmentRef = useRef(finishAssessment);
+  const recognizeMilitaryAlphabetRef = useRef(recognizeMilitaryAlphabet);
+  const onLetterValidatedRef = useRef(onLetterValidated);
 
   useEffect(() => {
-    allLettersRef.current = allLetters;
-  }, [allLetters]);
-
-  // Initialize expected next index when component starts
+    finishAssessmentRef.current = finishAssessment;
+  }, [finishAssessment]);
   useEffect(() => {
-    expectedNextIndexRef.current = 0;
-  }, []);
+    recognizeMilitaryAlphabetRef.current = recognizeMilitaryAlphabet;
+  }, [recognizeMilitaryAlphabet]);
+  useEffect(() => {
+    onLetterValidatedRef.current = onLetterValidated;
+  }, [onLetterValidated]);
+  useEffect(() => {
+    currentRowLettersRef.current = currentRowLetters;
+  }, [currentRowLetters]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -206,19 +228,15 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       console.error("Speech recognition is not supported in this browser.");
       return;
     }
-
     try {
       const recognition = new window.webkitSpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = "en-US";
-
       recognitionRef.current = recognition;
-
       recognition.onstart = () => {
         console.log("Speech recognition started");
       };
-
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         if (event.error === "no-speech") {
           console.log("No speech detected");
@@ -226,23 +244,17 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           console.error("Speech recognition error:", event);
         }
       };
-
       recognition.onend = () => {
-        console.log("Speech recognition ended");
-        // Only restart if the assessment is not finished
-        if (!isAssessmentFinished && recognitionRef.current) {
-          recognition.start(); // Re-enabled for continuous recognition
+        if (!isAssessmentFinishedRef.current && recognitionRef.current) {
+          recognition.start();
         }
       };
-
       recognition.onresult = (event: SpeechRecognitionEvent) => {
         const result = event.results[event.results.length - 1];
-        const fullTranscript = result[0].transcript; // Get the full transcript
-
+        const fullTranscript = result[0].transcript;
         const confidence = result[0].confidence;
-        const recognizedLetters = recognizeMilitaryAlphabet(fullTranscript);
-
-        // Update debug info for all results
+        const recognizedLetters =
+          recognizeMilitaryAlphabetRef.current(fullTranscript);
         setDebugInfo((prev) => {
           const newInfo = {
             transcript: fullTranscript,
@@ -256,132 +268,83 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           };
           return [...prev, newInfo].slice(-5);
         });
-
-        // Process interim results with sufficient confidence
-        console.log("Speech recognition result:", {
-          isFinal: result.isFinal,
-          confidence,
-          recognizedLetters,
-          fullTranscript,
-        });
-
         if (result.isFinal && recognizedLetters.length > 0) {
-          console.log("Processing recognized letters:", recognizedLetters);
-
-          // Process letters sequentially using index tracking
           let letterIndex = 0;
-
           const processNextLetter = () => {
-            if (letterIndex >= recognizedLetters.length) {
-              return; // All letters processed
-            }
-
+            if (letterIndex >= recognizedLetters.length) return;
             const letter = recognizedLetters[letterIndex];
-
             if (letter === "FINISH") {
               setIsAssessmentFinished(true);
-              finishAssessment();
-              // Stop the recognition engine when assessment is finished
-              if (recognitionRef.current) {
-                recognitionRef.current.stop();
-              }
+              finishAssessmentRef.current();
+              if (recognitionRef.current) recognitionRef.current.stop();
               return;
             }
-
-            const currentIndex = currentIndexRef.current;
-            const allLetters = allLettersRef.current;
-
-            console.log(
-              "Processing letter:",
-              letter,
-              "current index:",
-              currentIndex,
-              "expected next index:",
-              expectedNextIndexRef.current,
-              "letter index:",
-              letterIndex
-            );
-
-            // Only process if we're at the expected position
-            if (
-              currentIndex === expectedNextIndexRef.current &&
-              currentIndex < allLetters.length
-            ) {
-              const currentLetterState = allLetters[currentIndex];
-              const isCorrect = letter === currentLetterState.char;
-
-              console.log("Letter comparison:", {
-                guessed: letter,
-                actual: currentLetterState.char,
-                isCorrect,
-              });
-
-              // Update the letter state and advance to next letter
-              setAllLetters((prevAllLetters) => {
-                const newAllLetters = [...prevAllLetters];
-                if (isCorrect) {
-                  newAllLetters[currentIndex].status = "correct";
-                } else {
-                  newAllLetters[currentIndex].status = "incorrect";
-                }
-
-                const nextIndex = currentIndex + 1;
-
-                // If we've reached the end of the chart, stop
-                if (nextIndex >= newAllLetters.length) {
-                  setCurrentIndex(newAllLetters.length);
-                  return newAllLetters;
-                }
-
-                // Mark the next letter as current
-                newAllLetters[nextIndex].status = "current";
-                console.log("Next index set to:", nextIndex);
-
-                setCurrentIndex(nextIndex);
-
-                return newAllLetters;
-              });
-
-              onLetterValidated?.(isCorrect);
-
-              // Update expected next index and move to next letter
-              expectedNextIndexRef.current = currentIndex + 1;
-              letterIndex++;
-
-              // Process next letter after state update
-              setTimeout(processNextLetter, 100);
-            } else {
-              // If we're not at the expected position, wait and try again
-              setTimeout(processNextLetter, 50);
-            }
+            const idx = currentLetterIndexRef.current;
+            const rowLetters = currentRowLettersRef.current;
+            setCurrentRowLetters((prev) => {
+              if (idx >= prev.length) return prev;
+              const isCorrect = letter === prev[idx].char;
+              const updated = [...prev];
+              updated[idx].status = isCorrect ? "correct" : "incorrect";
+              if (idx + 1 < updated.length) {
+                updated[idx + 1].status = "current";
+              }
+              return updated;
+            });
+            setScore((prev) => ({
+              correctLetters:
+                prev.correctLetters +
+                (letter === rowLetters[idx]?.char ? 1 : 0),
+              attemptedLetters: prev.attemptedLetters + 1,
+            }));
+            onLetterValidatedRef.current?.(letter === rowLetters[idx]?.char);
+            setCurrentLetterIndex((prev) => prev + 1);
+            letterIndex++;
+            setTimeout(processNextLetter, 100);
           };
-
-          // Start processing
           processNextLetter();
         }
       };
-
       recognition.start();
     } catch (err) {
       console.error("Error initializing speech recognition:", err);
     }
-
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
         recognitionRef.current = null;
       }
     };
-  }, []); // Empty dependency array - only run once
+  }, []); // Only run once on mount
 
-  // Additional cleanup effect for when assessment is finished
+  // When a row is completed, advance to the next row
   useEffect(() => {
-    if (isAssessmentFinished && recognitionRef.current) {
-      console.log("Assessment finished, stopping speech recognition");
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
+    if (
+      currentRowLetters.length === NUM_LETTERS_PER_LINE &&
+      currentRowLetters.every(
+        (l) => l.status === "correct" || l.status === "incorrect"
+      ) &&
+      !isAssessmentFinished
+    ) {
+      if (currentRow < NUM_ROWS - 1) {
+        const nextRow = generateRowLetters();
+        nextRow[0].status = "current";
+        setCurrentRowLetters(nextRow);
+        setCurrentLetterIndex(0);
+        setCurrentRow((prev) => prev + 1);
+      } else {
+        setIsAssessmentFinished(true);
+        finishAssessment();
+        if (recognitionRef.current) recognitionRef.current.stop();
+      }
     }
-  }, [isAssessmentFinished]);
+  }, [
+    currentRowLetters,
+    isAssessmentFinished,
+    currentRow,
+    generateRowLetters,
+    finishAssessment,
+  ]);
 
   // Log calibration and viewing configuration data when component mounts
   useEffect(() => {
@@ -468,61 +431,8 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   // Get letter sizes for the chart
   const letterSizes = calculateLetterSizes();
 
-  // Debug: Log the full letterSizes array
-  console.log("Full letterSizes array:", letterSizes);
-
-  // Initialize the chart with random letters (only actual letters, no spacers)
-  useEffect(() => {
-    const initialAllLetters: LetterState[] = [];
-    for (let r = 0; r < NUM_ROWS; r++) {
-      for (let i = 0; i < NUM_LETTERS_PER_LINE; i++) {
-        const randomIndex = Math.floor(Math.random() * SLOAN_LETTERS.length);
-        initialAllLetters.push({
-          char: SLOAN_LETTERS[randomIndex],
-          status: "pending",
-        }); // Default to 'pending'
-      }
-    }
-
-    if (initialAllLetters.length > 0) {
-      initialAllLetters[0].status = "current"; // First letter is 'current'
-    }
-
-    setAllLetters(initialAllLetters);
-    console.log(
-      "All letters initialized in useEffect:",
-      initialAllLetters.length,
-      initialAllLetters
-    );
-    setCurrentIndex(0);
-  }, []);
-
-  // When a row is completed, advance to the next row
-  useEffect(() => {
-    if (allLetters.length === 0) return;
-    // Check if all letters in the current row are not 'pending' or 'current'
-    const startIdx = currentRow * NUM_LETTERS_PER_LINE;
-    const endIdx = startIdx + NUM_LETTERS_PER_LINE;
-    const rowLetters = allLetters.slice(startIdx, endIdx);
-    const allAttempted = rowLetters.every(
-      (l) => l.status === "correct" || l.status === "incorrect"
-    );
-    if (allAttempted && currentRow < NUM_ROWS - 1) {
-      setCurrentRow(currentRow + 1);
-      // Set the first letter of the next row to 'current' if not already set
-      setAllLetters((prev) => {
-        const updated = [...prev];
-        const nextRowStart = (currentRow + 1) * NUM_LETTERS_PER_LINE;
-        if (
-          updated[nextRowStart] &&
-          updated[nextRowStart].status === "pending"
-        ) {
-          updated[nextRowStart].status = "current";
-        }
-        return updated;
-      });
-    }
-  }, [allLetters, currentRow]);
+  // Add this ref for currentRowLetters
+  const currentRowLettersRef = useRef<LetterState[]>([]);
 
   return (
     <div
@@ -585,7 +495,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           ))
         )}
       </div>
-
       {/* Centered chart row below debug box */}
       <div
         style={{
@@ -596,7 +505,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           justifyContent: "center",
           width: "100vw",
           minHeight: "100vh",
-          // No marginTop! Chart row is always centered, debug box will occlude if needed
         }}
       >
         <div
@@ -606,60 +514,45 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             alignItems: "center",
           }}
         >
-          {allLetters.length > 0 && letterSizes ? (
+          {currentRowLetters.length > 0 && letterSizes ? (
             (() => {
               const rowIndex = currentRow;
               const letterSize = letterSizes[rowIndex] || letterSizes[0];
-              // Debug logging for the row
-              console.log(
-                `Current Row ${rowIndex}: LogMAR ${(
-                  1.0 -
-                  rowIndex * 0.1
-                ).toFixed(1)}, Calculated Size: ${letterSize}px`
-              );
               return (
                 <div
                   key={rowIndex}
                   className="chart-row"
                   style={{ "--row-index": rowIndex } as React.CSSProperties}
                 >
-                  {Array.from({ length: NUM_LETTERS_PER_LINE }).map(
-                    (_, colIndex) => {
-                      const itemIndex =
-                        rowIndex * NUM_LETTERS_PER_LINE + colIndex;
-                      const item = allLetters[itemIndex];
-
-                      return (
-                        <React.Fragment key={colIndex}>
-                          <span
-                            className={`letter ${item.status || ""}`}
-                            style={{
-                              fontSize: `${letterSize}px`,
-                              lineHeight: `${letterSize}px`,
-                            }}
-                          >
-                            {item.char}
-                          </span>
-                          {colIndex < NUM_LETTERS_PER_LINE - 1 && (
-                            <span
-                              className="spacer-char"
-                              style={{
-                                fontSize: `${letterSize}px`,
-                                lineHeight: `${letterSize}px`,
-                              }}
-                            >
-                              C
-                            </span>
-                          )}
-                        </React.Fragment>
-                      );
-                    }
-                  )}
+                  {currentRowLetters.map((item, colIndex) => (
+                    <React.Fragment key={colIndex}>
+                      <span
+                        className={`letter ${item.status || ""}`}
+                        style={{
+                          fontSize: `${letterSize}px`,
+                          lineHeight: `${letterSize}px`,
+                        }}
+                      >
+                        {item.char}
+                      </span>
+                      {colIndex < NUM_LETTERS_PER_LINE - 1 && (
+                        <span
+                          className="spacer-char"
+                          style={{
+                            fontSize: `${letterSize}px`,
+                            lineHeight: `${letterSize}px`,
+                          }}
+                        >
+                          C
+                        </span>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
               );
             })()
           ) : (
-            <div>Loading chart...</div> // Or any other loading indicator
+            <div>Loading chart...</div>
           )}
         </div>
       </div>
