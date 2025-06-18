@@ -140,14 +140,17 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   // Handle finishing the assessment
   const finishAssessment = useCallback(() => {
+    // Use refs to get the current state instead of potentially stale state
+    const currentAllLetters = allLettersRef.current;
+
     // Calculate LogMAR score: 1.1 - 0.02 per correct letter
-    const correctLetters = allLetters.filter(
+    const correctLetters = currentAllLetters.filter(
       (letter) => letter.status === "correct"
     ).length;
-    const attemptedLetters = allLetters.filter(
+    const attemptedLetters = currentAllLetters.filter(
       (letter) => letter.status === "correct" || letter.status === "incorrect"
     ).length;
-    const totalLetters = allLetters.length;
+    const totalLetters = currentAllLetters.length;
     const logMARScore = 1.1 - correctLetters * 0.02;
 
     console.log("Assessment finished");
@@ -162,7 +165,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       totalLetters,
       attemptedLetters,
     });
-  }, [allLetters, onAssessmentComplete]);
+  }, [onAssessmentComplete]);
 
   // Update refs when state changes
   useEffect(() => {
@@ -387,70 +390,81 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
+        flexDirection: "row",
+        alignItems: "flex-start",
         width: "100%",
+        gap: "2rem",
       }}
     >
-      {calibrationData && (
-        <div className="calibration-info">
-          {calibrationData.measuredHeightPx}px ={" "}
-          {calibrationData.measuredHeightMm}mm
-        </div>
-      )}
-
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          flex: "1",
         }}
       >
-        {allLetters.length > 0 ? (
-          Array.from({ length: NUM_ROWS }).map((_, rowIndex) => (
-            <div
-              key={rowIndex}
-              className="chart-row"
-              style={{ "--row-index": rowIndex } as React.CSSProperties}
-            >
-              {Array.from({ length: NUM_LETTERS_PER_LINE }).map(
-                (_, colIndex) => {
-                  const itemIndex = rowIndex * NUM_LETTERS_PER_LINE + colIndex;
-                  const item = allLetters[itemIndex];
-
-                  return (
-                    <React.Fragment key={colIndex}>
-                      <span className={`letter ${item.status || ""}`}>
-                        {item.char}
-                      </span>
-                      {colIndex < NUM_LETTERS_PER_LINE - 1 && (
-                        <span className="spacer-char">C</span> // Spacer added here for display
-                      )}
-                    </React.Fragment>
-                  );
-                }
-              )}
-            </div>
-          ))
-        ) : (
-          <div>Loading chart...</div> // Or any other loading indicator
+        {calibrationData && (
+          <div className="calibration-info">
+            {calibrationData.measuredHeightPx}px ={" "}
+            {calibrationData.measuredHeightMm}mm
+          </div>
         )}
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          {allLetters.length > 0 ? (
+            Array.from({ length: NUM_ROWS }).map((_, rowIndex) => (
+              <div
+                key={rowIndex}
+                className="chart-row"
+                style={{ "--row-index": rowIndex } as React.CSSProperties}
+              >
+                {Array.from({ length: NUM_LETTERS_PER_LINE }).map(
+                  (_, colIndex) => {
+                    const itemIndex =
+                      rowIndex * NUM_LETTERS_PER_LINE + colIndex;
+                    const item = allLetters[itemIndex];
+
+                    return (
+                      <React.Fragment key={colIndex}>
+                        <span className={`letter ${item.status || ""}`}>
+                          {item.char}
+                        </span>
+                        {colIndex < NUM_LETTERS_PER_LINE - 1 && (
+                          <span className="spacer-char">C</span> // Spacer added here for display
+                        )}
+                      </React.Fragment>
+                    );
+                  }
+                )}
+              </div>
+            ))
+          ) : (
+            <div>Loading chart...</div> // Or any other loading indicator
+          )}
+        </div>
       </div>
 
       {/* Speech Recognition Debug Info */}
       <div
         style={{
-          marginTop: "2rem",
-          marginBottom: "1rem",
+          flex: "0 0 400px",
           padding: "1rem",
           backgroundColor: "#f0f0f0",
           borderRadius: "4px",
           fontFamily: "monospace",
           fontSize: "1rem",
           border: "2px solid #ccc",
-          width: "80%",
-          maxWidth: "600px",
-          margin: "1rem auto",
+          maxHeight: "80vh",
+          overflowY: "auto",
+          position: "sticky",
+          top: "2rem",
         }}
       >
         <div
