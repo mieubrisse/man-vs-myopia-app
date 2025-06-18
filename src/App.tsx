@@ -1,8 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import "./App.css";
-import type { LogMARChartHandle } from "./components/LogMARChart";
 import LogMARChart from "./components/LogMARChart";
-import SpeechRecognizer from "./components/SpeechRecognizer";
 import CalibrationScreen from "./components/CalibrationScreen";
 import HomeScreen from "./components/HomeScreen";
 import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScreen";
@@ -18,7 +16,6 @@ type AppScreen =
   | "assessmentResults";
 
 const App: React.FC = () => {
-  const chartRef = useRef<LogMARChartHandle>(null);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
   const [calibrationData, setCalibrationData] = useState<{
     measuredHeightPx: number;
@@ -130,29 +127,16 @@ const App: React.FC = () => {
         className="app"
         style={{
           display: "flex",
-          flexDirection: "row",
-          gap: "2rem",
+          flexDirection: "column",
           padding: "2rem",
-          alignItems: "flex-start",
+          alignItems: "center",
         }}
       >
-        <div style={{ flex: "1 1 auto" }}>
-          <LogMARChart
-            ref={chartRef}
-            calibrationData={calibrationData}
-            viewingConfiguration={selectedViewingConfiguration}
-            onAssessmentComplete={handleAssessmentComplete}
-          />
-        </div>
-        <div
-          style={{
-            flex: "0 0 400px",
-            position: "sticky",
-            top: "2rem",
-          }}
-        >
-          <SpeechRecognizer chartRef={chartRef} />
-        </div>
+        <LogMARChart
+          calibrationData={calibrationData}
+          viewingConfiguration={selectedViewingConfiguration}
+          onAssessmentComplete={handleAssessmentComplete}
+        />
       </div>
     );
   }
