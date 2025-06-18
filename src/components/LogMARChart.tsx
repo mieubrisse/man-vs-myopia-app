@@ -26,6 +26,11 @@ interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
   calibrationData?: CalibrationData | null;
   viewingConfiguration?: ViewingConfiguration | null;
+  onAssessmentComplete?: (results: {
+    logMARScore: number;
+    correctLetters: number;
+    totalLetters: number;
+  }) => void;
 }
 
 export interface LogMARChartHandle {
@@ -34,7 +39,15 @@ export interface LogMARChartHandle {
 }
 
 const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
-  ({ onLetterValidated, calibrationData, viewingConfiguration }, ref) => {
+  (
+    {
+      onLetterValidated,
+      calibrationData,
+      viewingConfiguration,
+      onAssessmentComplete,
+    },
+    ref
+  ) => {
     const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
     const NUM_LETTERS_PER_LINE = 5;
     const NUM_ROWS = 14; // Based on the length of logMARValues (now hardcoded as per new structure)
@@ -156,11 +169,19 @@ const LogMARChart = forwardRef<LogMARChartHandle, LogMARChartProps>(
       const correctLetters = allLetters.filter(
         (letter) => letter.status === "correct"
       ).length;
+      const totalLetters = allLetters.length;
       const logMARScore = 1.1 - correctLetters * 0.02;
 
       console.log("Assessment finished");
       console.log(`Correct letters: ${correctLetters}`);
       console.log(`LogMAR score: ${logMARScore.toFixed(2)}`);
+
+      // Call the callback with results
+      onAssessmentComplete?.({
+        logMARScore,
+        correctLetters,
+        totalLetters,
+      });
     };
 
     // Expose the guessLetter function to parent components

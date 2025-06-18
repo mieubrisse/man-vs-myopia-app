@@ -7,13 +7,15 @@ import CalibrationScreen from "./components/CalibrationScreen";
 import HomeScreen from "./components/HomeScreen";
 import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScreen";
 import ViewingConfigurationSelectionScreen from "./components/ViewingConfigurationSelectionScreen";
+import AssessmentResultsScreen from "./components/AssessmentResultsScreen";
 
 type AppScreen =
   | "home"
   | "calibration"
   | "assessment"
   | "viewingConfigurations"
-  | "viewingConfigurationSelection";
+  | "viewingConfigurationSelection"
+  | "assessmentResults";
 
 const App: React.FC = () => {
   const chartRef = useRef<LogMARChartHandle>(null);
@@ -28,6 +30,11 @@ const App: React.FC = () => {
       name: string;
       distanceCentimeters: number;
     } | null>(null);
+  const [assessmentResults, setAssessmentResults] = useState<{
+    logMARScore: number;
+    correctLetters: number;
+    totalLetters: number;
+  } | null>(null);
 
   const handleStartCalibration = () => {
     setCurrentScreen("calibration");
@@ -68,6 +75,15 @@ const App: React.FC = () => {
     setCurrentScreen("home");
   };
 
+  const handleAssessmentComplete = (results: {
+    logMARScore: number;
+    correctLetters: number;
+    totalLetters: number;
+  }) => {
+    setAssessmentResults(results);
+    setCurrentScreen("assessmentResults");
+  };
+
   if (currentScreen === "home") {
     return (
       <HomeScreen
@@ -95,6 +111,17 @@ const App: React.FC = () => {
     );
   }
 
+  if (currentScreen === "assessmentResults") {
+    return (
+      <AssessmentResultsScreen
+        onGoHome={handleGoHome}
+        logMARScore={assessmentResults?.logMARScore || 0}
+        correctLetters={assessmentResults?.correctLetters || 0}
+        totalLetters={assessmentResults?.totalLetters || 0}
+      />
+    );
+  }
+
   return (
     <div
       className="app"
@@ -111,6 +138,7 @@ const App: React.FC = () => {
           ref={chartRef}
           calibrationData={calibrationData}
           viewingConfiguration={selectedViewingConfiguration}
+          onAssessmentComplete={handleAssessmentComplete}
         />
       </div>
       <div
