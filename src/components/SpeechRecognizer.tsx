@@ -67,16 +67,16 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
 
   // Common ways people might say each letter or command
   const RECOGNIZED_UTTERANCE_MAPPINGS: { [key: string]: string[] } = {
-    C: ["C", "SEE", "SEA", "CEE"],
-    D: ["D", "DEE", "DE"],
-    H: ["H", "AITCH", "HATCH"],
-    K: ["K", "KAY", "KAYE"],
-    N: ["N", "EN", "END"],
-    O: ["O", "OH", "ZERO", "0"],
-    R: ["R", "ARE", "OUR", "ARR"],
-    S: ["S", "ESS", "ES", "US"],
-    V: ["V", "VEE", "VEE"],
-    Z: ["Z", "ZEE", "ZED", "ZEE"],
+    C: ["C", "SEE", "SEA", "CEE", "CHARLIE"],
+    D: ["D", "DEE", "DE", "DELTA"],
+    H: ["H", "AITCH", "HATCH", "HOTEL"],
+    K: ["K", "KAY", "KAYE", "OKAY", "KILO", "HILO"],
+    N: ["N", "EN", "END", "NOVEMBER"],
+    O: ["O", "OH", "ZERO", "0", "OSCAR"],
+    R: ["R", "ARE", "OUR", "ARR", "ROMEO"],
+    S: ["S", "ESS", "ES", "US", "SIERRA"],
+    V: ["V", "VEE", "VIE", "VICTOR"],
+    Z: ["Z", "ZEE", "ZED", "ZIE", "ZULU"],
     FINISH: ["FINISH", "FINISHED"],
   };
 
@@ -137,14 +137,14 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
         const lastWord = words[words.length - 1];
 
         const confidence = result[0].confidence;
-        const recognizedUtterance = recognizeUtterance(lastWord); // Pass only the last word to transcriptToUtterance
+        const utterance = recognizeUtterance(lastWord); // Pass only the last word to transcriptToUtterance
 
         // Update debug info for all results
         setDebugInfo((prev) => {
           const newInfo = {
             transcript: fullTranscript,
             confidence,
-            utterance: recognizedUtterance,
+            utterance: utterance,
             timestamp: Date.now(),
             isFinal: result.isFinal,
           };
@@ -155,20 +155,20 @@ const SpeechRecognizer: React.FC<SpeechRecognizerProps> = ({ chartRef }) => {
         console.log("Speech recognition result:", {
           isFinal: result.isFinal,
           confidence,
-          utterance: recognizedUtterance,
+          utterance: utterance,
           hasChartRef: !!chartRef.current,
         });
 
-        if (result.isFinal && recognizedUtterance && chartRef.current) {
-          console.log("About to call guessLetter with:", recognizedUtterance);
-          if (recognizedUtterance === "FINISH") {
+        if (result.isFinal && utterance && chartRef.current) {
+          console.log("About to call guessLetter with:", utterance);
+          if (utterance === "FINISH") {
             chartRef.current.finishAssessment();
             // Stop the recognition engine when assessment is finished
             if (recognitionRef.current) {
               recognitionRef.current.stop();
             }
           } else {
-            chartRef.current.guessLetter(recognizedUtterance);
+            chartRef.current.guessLetter(utterance);
           }
         }
       };
