@@ -107,35 +107,50 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const currentIndexRef = useRef<number>(0);
   const allLettersRef = useRef<LetterState[]>([]);
 
-  // Common ways people might say each letter or command
-  const RECOGNIZED_UTTERANCE_MAPPINGS: { [key: string]: string[] } = {
-    C: ["C", "SEE", "SEA", "CEE", "CHARLIE"],
-    D: ["D", "DEE", "DE", "DELTA"],
-    H: ["H", "AITCH", "HATCH", "HOTEL"],
-    K: ["K", "KAY", "KAYE", "OKAY", "KILO", "HILO"],
-    N: ["N", "EN", "END", "NOVEMBER"],
-    O: ["O", "OH", "ZERO", "0", "OSCAR"],
-    R: ["R", "ARE", "OUR", "ARR", "ROMEO"],
-    S: ["S", "ESS", "ES", "US", "SIERRA"],
-    V: ["V", "VEE", "VIE", "VICTOR"],
-    Z: ["Z", "ZEE", "ZED", "ZIE", "ZULU"],
-    FINISH: ["FINISH", "FINISHED"],
+  // Military alphabet mappings only
+  const MILITARY_ALPHABET_MAPPINGS: { [key: string]: string } = {
+    ALPHA: "A",
+    BRAVO: "B",
+    CHARLIE: "C",
+    DELTA: "D",
+    ECHO: "E",
+    FOXTROT: "F",
+    GOLF: "G",
+    HOTEL: "H",
+    INDIA: "I",
+    JULIET: "J",
+    KILO: "K",
+    LIMA: "L",
+    MIKE: "M",
+    NOVEMBER: "N",
+    OSCAR: "O",
+    PAPA: "P",
+    QUEBEC: "Q",
+    ROMEO: "R",
+    SIERRA: "S",
+    TANGO: "T",
+    UNIFORM: "U",
+    VICTOR: "V",
+    WHISKEY: "W",
+    XRAY: "X",
+    YANKEE: "Y",
+    ZULU: "Z",
+    FINISH: "FINISH",
   };
 
-  // Helper function to convert a transcript to an utterance
-  const recognizeUtterance = (transcript: string): string | null => {
-    const upperTranscript = transcript.trim().toUpperCase();
+  // Helper function to convert military alphabet words to letters
+  const recognizeMilitaryAlphabet = (transcript: string): string[] => {
+    const words = transcript.trim().toUpperCase().split(/\s+/);
+    const recognizedLetters: string[] = [];
 
-    // Check each utterance's possible phrases
-    for (const [recognizedUtterance, phrases] of Object.entries(
-      RECOGNIZED_UTTERANCE_MAPPINGS
-    )) {
-      if (phrases.some((phrase) => upperTranscript === phrase)) {
-        return recognizedUtterance;
+    for (const word of words) {
+      const letter = MILITARY_ALPHABET_MAPPINGS[word];
+      if (letter) {
+        recognizedLetters.push(letter);
       }
     }
 
-    return upperTranscript;
+    return recognizedLetters;
   };
 
   // Handle finishing the assessment
@@ -215,19 +230,18 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         const result = event.results[event.results.length - 1];
         const fullTranscript = result[0].transcript; // Get the full transcript
 
-        // Split the transcript into words and take the last one
-        const words = fullTranscript.trim().split(" ");
-        const lastWord = words[words.length - 1];
-
         const confidence = result[0].confidence;
-        const utterance = recognizeUtterance(lastWord); // Pass only the last word to transcriptToUtterance
+        const recognizedLetters = recognizeMilitaryAlphabet(fullTranscript);
 
         // Update debug info for all results
         setDebugInfo((prev) => {
           const newInfo = {
             transcript: fullTranscript,
             confidence,
-            utterance: utterance,
+            utterance:
+              recognizedLetters.length > 0
+                ? recognizedLetters.join(", ")
+                : null,
             timestamp: Date.now(),
             isFinal: result.isFinal,
           };
@@ -238,69 +252,91 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         console.log("Speech recognition result:", {
           isFinal: result.isFinal,
           confidence,
-          utterance: utterance,
+          recognizedLetters,
+          fullTranscript,
         });
 
-        if (result.isFinal && utterance) {
-          console.log("About to process utterance:", utterance);
-          if (utterance === "FINISH") {
-            setIsAssessmentFinished(true);
-            finishAssessment();
-            // Stop the recognition engine when assessment is finished
-            if (recognitionRef.current) {
-              recognitionRef.current.stop();
+        if (result.isFinal && recognizedLetters.length > 0) {
+          console.log("Processing recognized letters:", recognizedLetters);
+
+          // Process each recognized letter sequentially
+          const processNextLetter = (letterIndex: number) => {
+            if (letterIndex >= recognizedLetters.length) {
+              return; // All letters processed
             }
-          } else {
-            // Directly handle letter guess
-            const currentIndex = currentIndexRef.current;
-            const allLetters = allLettersRef.current;
 
-            console.log(
-              "Processing letter guess:",
-              utterance,
-              "current index:",
-              currentIndex
-            );
+            const letter = recognizedLetters[letterIndex];
 
-            if (currentIndex < allLetters.length) {
-              const currentLetterState = allLetters[currentIndex];
-              const isCorrect = utterance === currentLetterState.char;
+            if (letter === "FINISH") {
+              setIsAssessmentFinished(true);
+              finishAssessment();
+              // Stop the recognition engine when assessment is finished
+              if (recognitionRef.current) {
+                recognitionRef.current.stop();
+              }
+              return; // Exit early if FINISH is detected
+            } else {
+              // Process letter guess
+              const currentIndex = currentIndexRef.current;
+              const allLetters = allLettersRef.current;
 
-              console.log("Letter comparison:", {
-                guessed: utterance,
-                actual: currentLetterState.char,
-                isCorrect,
-              });
+              console.log(
+                "Processing letter guess:",
+                letter,
+                "current index:",
+                currentIndex,
+                "letter index in batch:",
+                letterIndex
+              );
 
-              // Update the letter state
-              setAllLetters((prevAllLetters) => {
-                const newAllLetters = [...prevAllLetters];
-                if (isCorrect) {
-                  newAllLetters[currentIndex].status = "correct";
-                } else {
-                  newAllLetters[currentIndex].status = "incorrect";
-                }
+              if (currentIndex < allLetters.length) {
+                const currentLetterState = allLetters[currentIndex];
+                const isCorrect = letter === currentLetterState.char;
 
-                const nextIndex = currentIndex + 1;
+                console.log("Letter comparison:", {
+                  guessed: letter,
+                  actual: currentLetterState.char,
+                  isCorrect,
+                });
 
-                // If we've reached the end of the chart, stop
-                if (nextIndex >= newAllLetters.length) {
-                  setCurrentIndex(newAllLetters.length); // Set to end to prevent further processing
+                // Update the letter state
+                setAllLetters((prevAllLetters) => {
+                  const newAllLetters = [...prevAllLetters];
+                  if (isCorrect) {
+                    newAllLetters[currentIndex].status = "correct";
+                  } else {
+                    newAllLetters[currentIndex].status = "incorrect";
+                  }
+
+                  const nextIndex = currentIndex + 1;
+
+                  // If we've reached the end of the chart, stop
+                  if (nextIndex >= newAllLetters.length) {
+                    setCurrentIndex(newAllLetters.length); // Set to end to prevent further processing
+                    return newAllLetters;
+                  }
+
+                  // Mark the next letter as current
+                  newAllLetters[nextIndex].status = "current";
+                  console.log("Next index set to:", nextIndex);
+
+                  setCurrentIndex(nextIndex); // Update the main index state
+
                   return newAllLetters;
-                }
+                });
 
-                // Mark the next letter as current
-                newAllLetters[nextIndex].status = "current";
-                console.log("Next index set to:", nextIndex);
+                onLetterValidated?.(isCorrect);
 
-                setCurrentIndex(nextIndex); // Update the main index state
-
-                return newAllLetters;
-              });
-
-              onLetterValidated?.(isCorrect);
+                // Process the next letter after a short delay to allow state to update
+                setTimeout(() => {
+                  processNextLetter(letterIndex + 1);
+                }, 100);
+              }
             }
-          }
+          };
+
+          // Start processing from the first letter
+          processNextLetter(0);
         }
       };
 
