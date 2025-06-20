@@ -91,15 +91,23 @@ export function calculateLetterPixelSizeForLogMAR(
   viewingDistanceCm: number,
   fontSizePxPerCm: number
 ): number {
+  if (viewingDistanceCm === 0) {
+    throw new Error("viewingDistanceCm must be nonzero");
+  }
+  if (fontSizePxPerCm === 0) {
+    throw new Error("fontSizePxPerCm must be nonzero");
+  }
   // Step 1: Convert LogMAR to MAR (Minimum Angle of Resolution, in arcminutes)
   const MAR = Math.pow(10, desiredLogMAR); // MAR in arcminutes
-  // Step 2: Convert MAR to angle in degrees
-  const angleDegrees = MAR / 60; // 1 degree = 60 arcminutes
+  // Step 2: Letter height subtends 5 x MAR
+  const letterAngleArcmin = 5 * MAR;
+  // Step 3: Convert angle to degrees and then radians
+  const angleDegrees = letterAngleArcmin / 60; // 1 degree = 60 arcminutes
   const angleRadians = (angleDegrees * Math.PI) / 180;
-  // Step 3: Calculate the height in cm using geometry
+  // Step 4: Calculate the height in cm using geometry
   // height = 2 * distance * tan(angle/2)
   const heightCm = 2 * viewingDistanceCm * Math.tan(angleRadians / 2);
-  // Step 4: Convert to pixels
+  // Step 5: Convert to pixels
   const heightPx = heightCm * fontSizePxPerCm;
   return Math.round(heightPx);
 }
