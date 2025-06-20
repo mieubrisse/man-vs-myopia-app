@@ -6,6 +6,7 @@ import HomeScreen from "./components/HomeScreen";
 import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScreen";
 import ViewingConfigurationSelectionScreen from "./components/ViewingConfigurationSelectionScreen";
 import AssessmentResultsScreen from "./components/AssessmentResultsScreen";
+import LandoltCTestScreen from "./components/LandoltCTestScreen";
 
 type AppScreen =
   | "home"
@@ -13,7 +14,8 @@ type AppScreen =
   | "assessment"
   | "viewingConfigurations"
   | "viewingConfigurationSelection"
-  | "assessmentResults";
+  | "assessmentResults"
+  | "landoltCTest";
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
@@ -88,6 +90,7 @@ const App: React.FC = () => {
         onStartCalibration={handleStartCalibration}
         onStartAssessment={handleStartAssessment}
         onViewConfigurations={handleViewConfigurations}
+        onShowLandoltCTest={() => setCurrentScreen("landoltCTest")}
       />
     );
   }
@@ -138,6 +141,10 @@ const App: React.FC = () => {
         />
       </div>
     );
+  }
+
+  if (currentScreen === "landoltCTest") {
+    return <LandoltCTestScreen />;
   }
 
   return null;

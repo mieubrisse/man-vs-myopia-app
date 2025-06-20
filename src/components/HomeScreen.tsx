@@ -5,12 +5,14 @@ interface HomeScreenProps {
   onStartCalibration: () => void;
   onStartAssessment: () => void;
   onViewConfigurations: () => void;
+  onShowLandoltCTest: () => void;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartCalibration,
   onStartAssessment,
   onViewConfigurations,
+  onShowLandoltCTest,
 }) => {
   const [hasCalibration, setHasCalibration] = useState(false);
   const [hasViewingConfigurations, setHasViewingConfigurations] =
@@ -98,6 +100,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="option-content">
               <h3>Start Assessment</h3>
               <p>Begin the LogMAR vision assessment with speech recognition</p>
+            </div>
+          </button>
+
+          <button
+            className="home-option landolt-c-test-option"
+            onClick={onShowLandoltCTest}
+          >
+            <div className="option-icon">⭕</div>
+            <div className="option-content">
+              <h3>Show Landolt C Test</h3>
+              <p>Display the Landolt C optotype for testing</p>
             </div>
           </button>
         </div>
