@@ -162,10 +162,31 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   // Helper to generate a row of random letters
   const generateRowLetters = useCallback((): LetterState[] => {
-    return Array.from({ length: NUM_LETTERS_PER_LINE }, () => ({
-      char: SLOAN_LETTERS[Math.floor(Math.random() * SLOAN_LETTERS.length)],
-      status: "pending",
-    }));
+    const letters: LetterState[] = [];
+    let lastLetter = "";
+
+    for (let i = 0; i < NUM_LETTERS_PER_LINE; i++) {
+      let availableLetters = SLOAN_LETTERS;
+
+      // If this isn't the first letter, exclude the previous letter
+      if (lastLetter) {
+        availableLetters = SLOAN_LETTERS.filter(
+          (letter) => letter !== lastLetter
+        );
+      }
+
+      const randomIndex = Math.floor(Math.random() * availableLetters.length);
+      const selectedLetter = availableLetters[randomIndex];
+
+      letters.push({
+        char: selectedLetter,
+        status: "pending",
+      });
+
+      lastLetter = selectedLetter;
+    }
+
+    return letters;
   }, []);
 
   // Initialize the first row on mount
