@@ -91,20 +91,17 @@ export function calculateLetterPixelSizeForLogMAR(
   viewingDistanceCm: number,
   fontSizePxPerCm: number
 ): number {
-  // Constants for LogMAR calculation
-  const LOGMAR_1_0_ARC_MINUTES = 10; // 1.0 LogMAR = 10 arc minutes
-  const LOGMAR_1_0_ANGLE_DEGREES = LOGMAR_1_0_ARC_MINUTES / 60; // Convert arc minutes to degrees
-  const logmar1_0AngleRadians = (LOGMAR_1_0_ANGLE_DEGREES * Math.PI) / 180; // Convert degrees to radians
-  // Calculate the height of 1.0 LogMAR characters using geometry
-  // height = 2 * distance * tan(angle)
-  const logmar1_0HeightCm =
-    2 * viewingDistanceCm * Math.tan(logmar1_0AngleRadians);
-  // Calculate the pixel size for 1.0 LogMAR letters
-  const logmar1_0SizePx = logmar1_0HeightCm * fontSizePxPerCm;
-  // Calculate the size ratio for the desired LogMAR
-  const sizeRatio = Math.pow(10, desiredLogMAR - 1.0); // Correct geometric progression
-  // Final pixel size for the desired LogMAR
-  return Math.round(logmar1_0SizePx * sizeRatio);
+  // Step 1: Convert LogMAR to MAR (Minimum Angle of Resolution, in arcminutes)
+  const MAR = Math.pow(10, desiredLogMAR); // MAR in arcminutes
+  // Step 2: Convert MAR to angle in degrees
+  const angleDegrees = MAR / 60; // 1 degree = 60 arcminutes
+  const angleRadians = (angleDegrees * Math.PI) / 180;
+  // Step 3: Calculate the height in cm using geometry
+  // height = 2 * distance * tan(angle/2)
+  const heightCm = 2 * viewingDistanceCm * Math.tan(angleRadians / 2);
+  // Step 4: Convert to pixels
+  const heightPx = heightCm * fontSizePxPerCm;
+  return Math.round(heightPx);
 }
 
 const LogMARChart: React.FC<LogMARChartProps> = ({
