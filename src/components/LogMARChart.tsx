@@ -85,6 +85,28 @@ interface LogMARChartProps {
   }) => void;
 }
 
+// Utility function to calculate the pixel size for a given LogMAR value
+export function calculateLetterPixelSizeForLogMAR(
+  desiredLogMAR: number,
+  viewingDistanceCm: number,
+  fontSizePxPerCm: number
+): number {
+  // Constants for LogMAR calculation
+  const LOGMAR_1_0_ARC_MINUTES = 10; // 1.0 LogMAR = 10 arc minutes
+  const LOGMAR_1_0_ANGLE_DEGREES = LOGMAR_1_0_ARC_MINUTES / 60; // Convert arc minutes to degrees
+  const logmar1_0AngleRadians = (LOGMAR_1_0_ANGLE_DEGREES * Math.PI) / 180; // Convert degrees to radians
+  // Calculate the height of 1.0 LogMAR characters using geometry
+  // height = 2 * distance * tan(angle)
+  const logmar1_0HeightCm =
+    2 * viewingDistanceCm * Math.tan(logmar1_0AngleRadians);
+  // Calculate the pixel size for 1.0 LogMAR letters
+  const logmar1_0SizePx = logmar1_0HeightCm * fontSizePxPerCm;
+  // Calculate the size ratio for the desired LogMAR
+  const sizeRatio = Math.pow(10, desiredLogMAR - 1.0); // Correct geometric progression
+  // Final pixel size for the desired LogMAR
+  return Math.round(logmar1_0SizePx * sizeRatio);
+}
+
 const LogMARChart: React.FC<LogMARChartProps> = ({
   onLetterValidated,
   calibrationData,
@@ -407,44 +429,21 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       return null;
     }
 
-    // Constants for LogMAR calculation
-    const LOGMAR_1_0_ARC_MINUTES = 10; // 1.0 LogMAR = 10 arc minutes
-    const LOGMAR_1_0_ANGLE_DEGREES = LOGMAR_1_0_ARC_MINUTES / 60; // Convert arc minutes to degrees
-
-    // Convert viewing distance from cm to meters for calculation
-    const viewingDistanceCm = viewingConfiguration.distanceCentimeters;
-
-    // Calculate the height of 1.0 LogMAR characters using geometry
-    // height = 2 * distance * tan(angle)
-    const logmar1_0AngleRadians = (LOGMAR_1_0_ANGLE_DEGREES * Math.PI) / 180; // Convert degrees to radians
-    const logmar1_0HeightCm =
-      2 * viewingDistanceCm * Math.tan(logmar1_0AngleRadians);
-
     // Convert calibration data: measuredHeightPx = measuredHeightCm
     const pixelsPerCm =
       calibrationData.measuredHeightPx / calibrationData.measuredHeightCm;
-
-    // Calculate the pixel size for 1.0 LogMAR letters
-    const logmar1_0SizePx = logmar1_0HeightCm * pixelsPerCm;
 
     // Calculate sizes for all LogMAR levels (1.0 at top, decreasing by 0.1 per row)
     const letterSizes: number[] = [];
     for (let i = 0; i < NUM_ROWS; i++) {
       const logmarLevel = 1.0 - i * 0.1;
-      const sizeRatio = Math.pow(10, logmarLevel - 1.0); // Correct geometric progression
-      const letterSizePx = Math.round(logmar1_0SizePx * sizeRatio); // Round to nearest whole pixel
+      const letterSizePx = calculateLetterPixelSizeForLogMAR(
+        logmarLevel,
+        viewingConfiguration.distanceCentimeters,
+        pixelsPerCm
+      );
       letterSizes.push(letterSizePx);
     }
-
-    console.log("LogMAR letter sizes calculated:", {
-      viewingDistanceCm,
-      logmar1_0ArcMinutes: LOGMAR_1_0_ARC_MINUTES,
-      logmar1_0AngleDegrees: LOGMAR_1_0_ANGLE_DEGREES,
-      logmar1_0AngleRadians,
-      logmar1_0HeightCm,
-      logmar1_0SizePx,
-      letterSizes,
-    });
 
     return letterSizes;
   }, [calibrationData, viewingConfiguration]);
