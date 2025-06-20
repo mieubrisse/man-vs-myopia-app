@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import "./LogMARChart.css";
+import { LandoltCOptotype } from "./LandoltCOptotype";
 
 // Speech Recognition interfaces
 interface SpeechRecognition extends EventTarget {
@@ -58,7 +59,7 @@ interface DebugInfo {
 }
 
 interface LetterState {
-  char: string;
+  orientation: string;
   status?: "correct" | "incorrect" | "current" | "pending";
 }
 
@@ -118,7 +119,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   viewingConfiguration,
   onAssessmentComplete,
 }) => {
-  const SLOAN_LETTERS = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"];
+  const LANDOLT_C_ORIENTATIONS = ["NORTH", "EAST", "SOUTH", "WEST"];
   const NUM_LETTERS_PER_LINE = 5;
   const NUM_ROWS = 14;
 
@@ -140,80 +141,90 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const isAssessmentFinishedRef = useRef<boolean>(false);
 
   // Military alphabet mappings only
-  const MILITARY_ALPHABET_MAPPINGS: { [key: string]: string } = {
-    ALPHA: "A",
-    BRAVO: "B",
-    CHARLIE: "C",
-    "CHARLIE'S": "C",
-    DELTA: "D",
-    ECHO: "E",
-    FOXTROT: "F",
-    GOLF: "G",
-    HOTEL: "H",
-    INDIA: "I",
-    JULIET: "J",
-    KILO: "K",
-    LIMA: "L",
-    MIKE: "M",
-    NOVEMBER: "N",
-    OSCAR: "O",
-    PAPA: "P",
-    QUEBEC: "Q",
-    ROMEO: "R",
-    SIERRA: "S",
-    CIARA: "S",
-    TANGO: "T",
-    UNIFORM: "U",
-    VICTOR: "V",
-    WHISKEY: "W",
-    XRAY: "X",
-    YANKEE: "Y",
-    ZULU: "Z",
+  // const MILITARY_ALPHABET_MAPPINGS: { [key: string]: string } = {
+  //   ALPHA: "A",
+  //   BRAVO: "B",
+  //   CHARLIE: "C",
+  //   "CHARLIE'S": "C",
+  //   DELTA: "D",
+  //   ECHO: "E",
+  //   FOXTROT: "F",
+  //   GOLF: "G",
+  //   HOTEL: "H",
+  //   INDIA: "I",
+  //   JULIET: "J",
+  //   KILO: "K",
+  //   LIMA: "L",
+  //   MIKE: "M",
+  //   NOVEMBER: "N",
+  //   OSCAR: "O",
+  //   PAPA: "P",
+  //   QUEBEC: "Q",
+  //   ROMEO: "R",
+  //   SIERRA: "S",
+  //   CIARA: "S",
+  //   TANGO: "T",
+  //   UNIFORM: "U",
+  //   VICTOR: "V",
+  //   WHISKEY: "W",
+  //   XRAY: "X",
+  //   YANKEE: "Y",
+  //   ZULU: "Z",
+  //   FINISH: "FINISH",
+  // };
+
+  const ORIENTATION_MAPPINGS: { [key: string]: string } = {
+    NORTH: "NORTH",
+    EAST: "EAST",
+    SOUTH: "SOUTH",
+    WEST: "WEST",
     FINISH: "FINISH",
   };
 
-  // Helper function to convert military alphabet words to letters
-  const recognizeMilitaryAlphabet = (transcript: string): string[] => {
+  // Helper function to convert spoken words to orientations
+  const recognizeOrientation = (transcript: string): string[] => {
     const words = transcript.trim().toUpperCase().split(/\s+/);
-    const recognizedLetters: string[] = [];
+    const recognizedOrientations: string[] = [];
 
     for (const word of words) {
-      const letter = MILITARY_ALPHABET_MAPPINGS[word];
-      if (letter) {
-        recognizedLetters.push(letter);
+      const orientation = ORIENTATION_MAPPINGS[word];
+      if (orientation) {
+        recognizedOrientations.push(orientation);
       }
     }
 
-    return recognizedLetters;
+    return recognizedOrientations;
   };
 
   // Helper to generate a row of random letters
   const generateRowLetters = useCallback((): LetterState[] => {
-    const letters: LetterState[] = [];
-    let lastLetter = "";
+    const orientations: LetterState[] = [];
+    let lastOrientation = "";
 
     for (let i = 0; i < NUM_LETTERS_PER_LINE; i++) {
-      let availableLetters = SLOAN_LETTERS;
+      let availableOrientations = LANDOLT_C_ORIENTATIONS;
 
-      // If this isn't the first letter, exclude the previous letter
-      if (lastLetter) {
-        availableLetters = SLOAN_LETTERS.filter(
-          (letter) => letter !== lastLetter
+      // If this isn't the first letter, exclude the previous orientation
+      if (lastOrientation) {
+        availableOrientations = LANDOLT_C_ORIENTATIONS.filter(
+          (orientation) => orientation !== lastOrientation
         );
       }
 
-      const randomIndex = Math.floor(Math.random() * availableLetters.length);
-      const selectedLetter = availableLetters[randomIndex];
+      const randomIndex = Math.floor(
+        Math.random() * availableOrientations.length
+      );
+      const selectedOrientation = availableOrientations[randomIndex];
 
-      letters.push({
-        char: selectedLetter,
+      orientations.push({
+        orientation: selectedOrientation,
         status: "pending",
       });
 
-      lastLetter = selectedLetter;
+      lastOrientation = selectedOrientation;
     }
 
-    return letters;
+    return orientations;
   }, []);
 
   // Initialize the first row on mount
@@ -254,15 +265,15 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   // Store stable references to functions for use in event handlers
   const finishAssessmentRef = useRef(finishAssessment);
-  const recognizeMilitaryAlphabetRef = useRef(recognizeMilitaryAlphabet);
+  const recognizeOrientationRef = useRef(recognizeOrientation);
   const onLetterValidatedRef = useRef(onLetterValidated);
 
   useEffect(() => {
     finishAssessmentRef.current = finishAssessment;
   }, [finishAssessment]);
   useEffect(() => {
-    recognizeMilitaryAlphabetRef.current = recognizeMilitaryAlphabet;
-  }, [recognizeMilitaryAlphabet]);
+    recognizeOrientationRef.current = recognizeOrientation;
+  }, [recognizeOrientation]);
   useEffect(() => {
     onLetterValidatedRef.current = onLetterValidated;
   }, [onLetterValidated]);
@@ -301,27 +312,27 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         const result = event.results[event.results.length - 1];
         const fullTranscript = result[0].transcript;
         const confidence = result[0].confidence;
-        const recognizedLetters =
-          recognizeMilitaryAlphabetRef.current(fullTranscript);
+        const recognizedOrientations =
+          recognizeOrientationRef.current(fullTranscript);
         setDebugInfo((prev) => {
           const newInfo = {
             transcript: fullTranscript,
             confidence,
             utterance:
-              recognizedLetters.length > 0
-                ? recognizedLetters.join(", ")
+              recognizedOrientations.length > 0
+                ? recognizedOrientations.join(", ")
                 : null,
             timestamp: Date.now(),
             isFinal: result.isFinal,
           };
           return [...prev, newInfo].slice(-5);
         });
-        if (result.isFinal && recognizedLetters.length > 0) {
+        if (result.isFinal && recognizedOrientations.length > 0) {
           let letterIndex = 0;
           const processNextLetter = () => {
-            if (letterIndex >= recognizedLetters.length) return;
-            const letter = recognizedLetters[letterIndex];
-            if (letter === "FINISH") {
+            if (letterIndex >= recognizedOrientations.length) return;
+            const orientation = recognizedOrientations[letterIndex];
+            if (orientation === "FINISH") {
               setIsAssessmentFinished(true);
               finishAssessmentRef.current();
               if (recognitionRef.current) recognitionRef.current.stop();
@@ -331,7 +342,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             const rowLetters = currentRowLettersRef.current;
             setCurrentRowLetters((prev) => {
               if (idx >= prev.length) return prev;
-              const isCorrect = letter === prev[idx].char;
+              const isCorrect = orientation === prev[idx].orientation;
               const updated = [...prev];
               updated[idx].status = isCorrect ? "correct" : "incorrect";
               if (idx + 1 < updated.length) {
@@ -342,7 +353,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             setScore((prev) => ({
               correctLetters:
                 prev.correctLetters +
-                (letter === rowLetters[idx]?.char ? 1 : 0),
+                (orientation === rowLetters[idx]?.orientation ? 1 : 0),
               attemptedLetters: prev.attemptedLetters + 1,
             }));
             onLetterValidatedRef.current?.(letter === rowLetters[idx]?.char);
@@ -551,25 +562,35 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 >
                   {currentRowLetters.map((item, colIndex) => (
                     <React.Fragment key={colIndex}>
-                      <span
+                      <div
                         className={`letter ${item.status || ""}`}
                         style={{
-                          fontSize: `${letterSize}px`,
-                          lineHeight: `${letterSize}px`,
+                          width: `${letterSize}px`,
+                          height: `${letterSize}px`,
                         }}
                       >
-                        {item.char}
-                      </span>
+                        <LandoltCOptotype
+                          orientation={
+                            item.orientation as
+                              | "NORTH"
+                              | "EAST"
+                              | "SOUTH"
+                              | "WEST"
+                          }
+                        />
+                      </div>
+
                       {colIndex < NUM_LETTERS_PER_LINE - 1 && (
-                        <span
-                          className="spacer-char"
+                        <div
+                          className="spacer"
                           style={{
-                            fontSize: `${letterSize}px`,
-                            lineHeight: `${letterSize}px`,
+                            width: `${letterSize}px`,
+                            height: `${letterSize}px`,
+                            visibility: "hidden",
                           }}
                         >
-                          C
-                        </span>
+                          <LandoltCOptotype orientation="NORTH" />
+                        </div>
                       )}
                     </React.Fragment>
                   ))}
