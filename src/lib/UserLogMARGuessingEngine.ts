@@ -30,10 +30,17 @@ export class UserLogMARGuessingEngine {
    * line to show to the user that would maximize the information we'd gain from the user
    * reading the line.
    */
-  proposeNextTrialLogMAR() {
+  proposeNextTrialLogMAR(): number {
     // TODO Use a better method of choosing the next trial - prior mean is the basic version,
     // but we can do better with an entropy minimization scheme. I don't do this now because
     // it's not that important - just reduces the number of letters we have to show the user.
+    let expectedValue = 0;
+
+    for (const [logMAR, probability] of this.alphaPriors) {
+      expectedValue += logMAR * probability;
+    }
+
+    return expectedValue;
   }
 
   /**
@@ -63,7 +70,7 @@ export class UserLogMARGuessingEngine {
     logMAR: number
   ): number {
     return (
-      gamma + (1 - gamma - lambda) / (1 + Math.exp(-beta * (logMAR - alpha)))
+      gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (logMAR - alpha)))
     );
   }
 }
