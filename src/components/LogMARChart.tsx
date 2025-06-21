@@ -130,23 +130,24 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     "NORTHWEST",
   ];
   const NUM_LETTERS_PER_LINE = 5;
-  const NUM_ROWS = 14;
+  const STARTING_LOGMAR = 0.4;
 
   // Only keep state for the current row's letters and their statuses
   const [currentRowLetters, setCurrentRowLetters] = useState<LetterState[]>([]);
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
-  const [currentRow, setCurrentRow] = useState(0);
+  const [currentLogMAR, setCurrentLogMAR] = useState(STARTING_LOGMAR);
   const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
-  const [score, setScore] = useState({
-    correctLetters: 0,
-    attemptedLetters: 0,
-  });
+
+  // Track scores for each LogMAR value: Map<LogMAR, {attempted: number, correct: number}>
+  const [logMARScoreMap, setLogMARScoreMap] = useState<
+    Map<number, { attempted: number; correct: number }>
+  >(new Map());
 
   // Speech recognition state
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const currentLetterIndexRef = useRef<number>(0);
-  const currentRowRef = useRef<number>(0);
+  const currentLogMARRef = useRef<number>(STARTING_LOGMAR);
   const isAssessmentFinishedRef = useRef<boolean>(false);
 
   // Military alphabet mappings only
@@ -196,23 +197,12 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   // Helper function to convert spoken words to orientations
   const recognizeOrientation = (transcript: string): string[] => {
-    const parts = transcript
-      .trim()
-      .toUpperCase()
-      .split(/\s+AND\s+/);
+    const words = transcript.trim().toUpperCase().split(/\s+/);
     const recognizedOrientations: string[] = [];
 
-    for (const part of parts) {
-      const trimmedPart = part.trim();
-
-      // First, try to match the exact orientation
-      let orientation = ORIENTATION_MAPPINGS[trimmedPart];
-
-      // If not found, try to combine space-separated words into compound directions
-      if (!orientation && trimmedPart.includes(" ")) {
-        const combined = trimmedPart.replace(/\s+/g, "");
-        orientation = ORIENTATION_MAPPINGS[combined];
-      }
+    for (const word of words) {
+      const trimmedWord = word.trim();
+      const orientation = ORIENTATION_MAPPINGS[trimmedWord];
 
       if (orientation) {
         recognizedOrientations.push(orientation);
@@ -264,30 +254,35 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       return prev;
     });
     setCurrentLetterIndex(0);
-    setCurrentRow(0);
-    setScore({ correctLetters: 0, attemptedLetters: 0 });
+    setCurrentLogMAR(STARTING_LOGMAR);
     setIsAssessmentFinished(false);
   }, [generateRowLetters]);
 
   // Update refs when state changes
   useEffect(() => {
     currentLetterIndexRef.current = currentLetterIndex;
-    currentRowRef.current = currentRow;
+    currentLogMARRef.current = currentLogMAR;
     isAssessmentFinishedRef.current = isAssessmentFinished;
-  }, [currentLetterIndex, currentRow, isAssessmentFinished]);
+  }, [currentLetterIndex, currentLogMAR, isAssessmentFinished]);
 
   // Handle finishing the assessment
   const finishAssessment = useCallback(() => {
-    const { correctLetters, attemptedLetters } = score;
-    const totalLetters = NUM_ROWS * NUM_LETTERS_PER_LINE;
-    const logMARScore = 1.1 - correctLetters * 0.02;
+    let totalCorrect = 0;
+    let totalAttempted = 0;
+
+    for (const [, scores] of logMARScoreMap) {
+      totalCorrect += scores.correct;
+      totalAttempted += scores.attempted;
+    }
+
+    const logMARScore = currentLogMAR; // Use the current LogMAR as the score
     onAssessmentComplete?.({
       logMARScore,
-      correctLetters,
-      totalLetters,
-      attemptedLetters,
+      correctLetters: totalCorrect,
+      totalLetters: totalAttempted,
+      attemptedLetters: totalAttempted,
     });
-  }, [score, onAssessmentComplete]);
+  }, [logMARScoreMap, currentLogMAR, onAssessmentComplete]);
 
   // Store stable references to functions for use in event handlers
   const finishAssessmentRef = useRef(finishAssessment);
@@ -376,15 +371,23 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               }
               return updated;
             });
-            setScore((prev) => ({
-              correctLetters:
-                prev.correctLetters +
-                (orientation === rowLetters[idx]?.orientation ? 1 : 0),
-              attemptedLetters: prev.attemptedLetters + 1,
-            }));
-            onLetterValidatedRef.current?.(
-              orientation === rowLetters[idx]?.orientation
-            );
+
+            // Update the score map
+            const isCorrect = orientation === rowLetters[idx]?.orientation;
+            setLogMARScoreMap((prev) => {
+              const newMap = new Map(prev);
+              const currentScores = newMap.get(currentLogMARRef.current) || {
+                attempted: 0,
+                correct: 0,
+              };
+              newMap.set(currentLogMARRef.current, {
+                attempted: currentScores.attempted + 1,
+                correct: currentScores.correct + (isCorrect ? 1 : 0),
+              });
+              return newMap;
+            });
+
+            onLetterValidatedRef.current?.(isCorrect);
             setCurrentLetterIndex((prev) => prev + 1);
             letterIndex++;
             setTimeout(processNextLetter, 100);
@@ -413,12 +416,13 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       ) &&
       !isAssessmentFinished
     ) {
-      if (currentRow < NUM_ROWS - 1) {
+      if (currentLogMAR > 0.0) {
+        const nextLogMAR = currentLogMAR - 0.1;
+        setCurrentLogMAR(nextLogMAR);
         const nextRow = generateRowLetters();
         nextRow[0].status = "current";
         setCurrentRowLetters(nextRow);
         setCurrentLetterIndex(0);
-        setCurrentRow((prev) => prev + 1);
       } else {
         setIsAssessmentFinished(true);
         finishAssessment();
@@ -428,7 +432,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   }, [
     currentRowLetters,
     isAssessmentFinished,
-    currentRow,
+    currentLogMAR,
     generateRowLetters,
     finishAssessment,
   ]);
@@ -477,23 +481,18 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     const pixelsPerCm =
       calibrationData.measuredHeightPx / calibrationData.measuredHeightCm;
 
-    // Calculate sizes for all LogMAR levels (1.0 at top, decreasing by 0.1 per row)
-    const letterSizes: number[] = [];
-    for (let i = 0; i < NUM_ROWS; i++) {
-      const logmarLevel = 1.0 - i * 0.1;
-      const letterSizePx = calculateLetterPixelSizeForLogMAR(
-        logmarLevel,
-        viewingConfiguration.distanceCentimeters,
-        pixelsPerCm
-      );
-      letterSizes.push(letterSizePx);
-    }
+    // Calculate size for the current LogMAR level
+    const letterSizePx = calculateLetterPixelSizeForLogMAR(
+      currentLogMAR,
+      viewingConfiguration.distanceCentimeters,
+      pixelsPerCm
+    );
 
-    return letterSizes;
-  }, [calibrationData, viewingConfiguration]);
+    return letterSizePx;
+  }, [calibrationData, viewingConfiguration, currentLogMAR]);
 
-  // Get letter sizes for the chart
-  const letterSizes = calculateLetterSizes();
+  // Get letter size for the chart
+  const letterSize = calculateLetterSizes();
 
   // Add this ref for currentRowLetters
   const currentRowLettersRef = useRef<LetterState[]>([]);
@@ -578,15 +577,15 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             alignItems: "center",
           }}
         >
-          {currentRowLetters.length > 0 && letterSizes ? (
+          {currentRowLetters.length > 0 && letterSize ? (
             (() => {
-              const rowIndex = currentRow;
-              const letterSize = letterSizes[rowIndex] || letterSizes[0];
               return (
                 <div
-                  key={rowIndex}
+                  key={currentLogMAR}
                   className="chart-row"
-                  style={{ "--row-index": rowIndex } as React.CSSProperties}
+                  style={
+                    { "--row-index": currentLogMAR } as React.CSSProperties
+                  }
                 >
                   {currentRowLetters.map((item, colIndex) => (
                     <React.Fragment key={colIndex}>
