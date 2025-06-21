@@ -119,7 +119,16 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   viewingConfiguration,
   onAssessmentComplete,
 }) => {
-  const LANDOLT_C_ORIENTATIONS = ["NORTH", "EAST", "SOUTH", "WEST"];
+  const LANDOLT_C_ORIENTATIONS = [
+    "NORTH",
+    "NORTHEAST",
+    "EAST",
+    "SOUTHEAST",
+    "SOUTH",
+    "SOUTHWEST",
+    "WEST",
+    "NORTHWEST",
+  ];
   const NUM_LETTERS_PER_LINE = 5;
   const NUM_ROWS = 14;
 
@@ -175,19 +184,36 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   const ORIENTATION_MAPPINGS: { [key: string]: string } = {
     NORTH: "NORTH",
+    NORTHEAST: "NORTHEAST",
     EAST: "EAST",
+    SOUTHEAST: "SOUTHEAST",
     SOUTH: "SOUTH",
+    SOUTHWEST: "SOUTHWEST",
     WEST: "WEST",
+    NORTHWEST: "NORTHWEST",
     FINISH: "FINISH",
   };
 
   // Helper function to convert spoken words to orientations
   const recognizeOrientation = (transcript: string): string[] => {
-    const words = transcript.trim().toUpperCase().split(/\s+/);
+    const parts = transcript
+      .trim()
+      .toUpperCase()
+      .split(/\s+AND\s+/);
     const recognizedOrientations: string[] = [];
 
-    for (const word of words) {
-      const orientation = ORIENTATION_MAPPINGS[word];
+    for (const part of parts) {
+      const trimmedPart = part.trim();
+
+      // First, try to match the exact orientation
+      let orientation = ORIENTATION_MAPPINGS[trimmedPart];
+
+      // If not found, try to combine space-separated words into compound directions
+      if (!orientation && trimmedPart.includes(" ")) {
+        const combined = trimmedPart.replace(/\s+/g, "");
+        orientation = ORIENTATION_MAPPINGS[combined];
+      }
+
       if (orientation) {
         recognizedOrientations.push(orientation);
       }
@@ -356,7 +382,9 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 (orientation === rowLetters[idx]?.orientation ? 1 : 0),
               attemptedLetters: prev.attemptedLetters + 1,
             }));
-            onLetterValidatedRef.current?.(letter === rowLetters[idx]?.char);
+            onLetterValidatedRef.current?.(
+              orientation === rowLetters[idx]?.orientation
+            );
             setCurrentLetterIndex((prev) => prev + 1);
             letterIndex++;
             setTimeout(processNextLetter, 100);
@@ -573,9 +601,13 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                           orientation={
                             item.orientation as
                               | "NORTH"
+                              | "NORTHEAST"
                               | "EAST"
+                              | "SOUTHEAST"
                               | "SOUTH"
+                              | "SOUTHWEST"
                               | "WEST"
+                              | "NORTHWEST"
                           }
                         />
                       </div>
