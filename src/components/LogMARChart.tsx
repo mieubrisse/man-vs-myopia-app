@@ -113,6 +113,22 @@ export function calculateLetterPixelSizeForLogMAR(
   return Math.round(heightPx);
 }
 
+/*
+WHAT CHATGPT HAS TO SAY ABOUT LOGMAR CONFIDENCE INTERVALS:
+
+Because the natural repeatability floor of a paper ETDRS is already ± 0.15 logMAR, any algorithm that
+tightens the credible interval width to ≤ 0.10 logMAR is unequivocally more precise than standard care.
+Going down to ± 0.05 logMAR buys you a factor-of-three margin over the paper chart’s noise—very useful for:
+•	Detecting modest disease progression early (e.g., −0.08 logMAR change).
+•	Reducing sample size in trials that use acuity as an endpoint.
+•	Giving home users feedback sensitive enough to see day-to-day fluctuations.
+
+Trade-off rule of thumb
+  •	Halving the confidence interval width roughly doubles the number of informative trials once you’re below ± 0.10 logMAR.
+  •	Below ± 0.03 logMAR the benefit/effort curve flattens; observer variability (blinks, attention) dominates.
+*/
+const LOGMAR_CONFIDENCE_INTERVAL: number = 0.05;
+
 const LogMARChart: React.FC<LogMARChartProps> = ({
   onLetterValidated,
   calibrationData,

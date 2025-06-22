@@ -2,6 +2,27 @@ export interface UserLogMARGuess {
   logMARGuess: number;
 }
 
+// The smallest resolution of a logMAR that we'll...
+// - Allow the user to enter
+// - Output, for proposing logMAR sizes
+const MAXIMUM_LOGMAR_PRECISION: number = 1000;
+
+/*
+export type PsychometricCoreFunction = (
+  alpha: number,
+  beta: number,
+  x: number
+) => number;
+
+export function sigmoidFunction(
+  alpha: number,
+  beta: number,
+  x: number
+): number {
+  return 1 / (1 + Math.exp(-beta * (x - alpha)));
+}
+  */
+
 /**
  * This class takes a very well-informed guess at what the user's LogMAR prescription is based on
  * their performance on the LogMAR chart.
@@ -15,39 +36,47 @@ export interface UserLogMARGuess {
  *
  * I'd like to thank ChatGPT for doing a GREAT job explaining this to me.
  */
+// TODO Incorporate the Stanford Visual Acuity Test?? https://stanford.edu/~cpiech/bio/papers/StAT.pdf?utm_source=chatgpt.com
 export class UserLogMARGuessingEngine {
-  // TODO guess this dynamically using Bayesian inference
-  private static LOGISTIC_PSYCHOMETRIC_BETA: number = 1.0;
+  // This is the slope at alpha (the point where probability of the user's correct guess crosses 1.0)
+  // ChatGPT says "High-contrast Sloan letters, fovea, adult observers → β ≈ 10 – 15 for the logistic form we’ve been using"
+  // TODO Derive this value independently from user observation, preferably taking into account light/contrast levels as well
+  /*
+   This is important because according to ChatGPT:
+
+   "Going from photopic high-contrast to mesopic or low-contrast letters reduces β by 25-50 %. Mesopic/low-contrast acuity papers consistently find gentler slopes"
+   https://pubmed.ncbi.nlm.nih.gov/28211180/
+   https://journals.lww.com/optvissci/abstract/2015/05000/determinants_and_standardization_of_mesopic_visual.8.aspx
+
+   "Tumbling-E and Landolt-C are usually 10-20 % flatter than 10-AFC Sloan because of higher guess rate and stimulus confusions."
+
+   https://www.researchgate.net/publication/12066925_The_Slope_of_the_Psychometric_Function_for_Bailey-Lovie_Letter_Charts_Defocus_Effects_and_Implications_for_Modeling_Letter-By-Letter_Scores
+   */
+  private static LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.0125; // 12.5 converted for LogMAR thousandths
 
   // TODO maybe guess this dynamically???
   private static LOGISTIC_PSYCHOMETRIC_LAMBDA: number = 0.01; // Chose this number completely arbitrarily
 
-  /*
-  This variable says, the guesses returned by the probabil
-  WHAT CHATGPT HAS TO SAY ABOUT LOGMAR CONFIDENCE INTERVALS:
-
-  Because the natural repeatability floor of a paper ETDRS is already ± 0.15 logMAR, any algorithm that
-  tightens the credible interval width to ≤ 0.10 logMAR is unequivocally more precise than standard care.
-  Going down to ± 0.05 logMAR buys you a factor-of-three margin over the paper chart’s noise—very useful for:
-	•	Detecting modest disease progression early (e.g., −0.08 logMAR change).
-	•	Reducing sample size in trials that use acuity as an endpoint.
-	•	Giving home users feedback sensitive enough to see day-to-day fluctuations.
-
-  Trade-off rule of thumb
-    •	Halving the confidence interval width roughly doubles the number of informative trials once you’re below ± 0.10 logMAR.
-    •	Below ± 0.03 logMAR the benefit/effort curve flattens; observer variability (blinks, attention) dominates.
-  */
-
-  private alphaPriors: Map<number, number>;
+  private alphaPriors: Map<number, number>; // Keys are THOUSANDTHS of LogMAR (to avoid floating-point silliness)
   private logMARGap: number;
   private numDistinctOptotypes: number;
   private confidenceInterval: number;
+  // private psychometricCore: PsychometricCoreFunction;
 
   /**
+   * Creates an engine for probabilitistically determining the user's LogMAR prescription.
+   *
+   * **NOTE:** The smallest LogMAR value that this engine will operate on is 0.001 LogMAR!
    *
    * @param alphaPriors A probability graph of LogMAR -> probability that
    * a psychometric function with an "alpha" parameter of that LogMAR value most
    * closely matches the user's data.
+   *
+   * Precisely, each entry is treated as a bucket with
+   * the total probability evenly distributed across the bucket. The width of the bucket
+   * will be alpha_logMAR_N+1 - alpha_logMAR_N.
+   *
+   * **NOTE:** The LogMAR values here must not exceed the maximum 0.001 LogMAR resolution.
    *
    * @param numDistinctOptotypes The number of possible optotypes that could be shown
    * to a user during any given trial (e.g. if we're using Sloan letters, that would be 10
@@ -65,18 +94,44 @@ export class UserLogMARGuessingEngine {
       throw new Error("Must have at least two alpha priors");
     }
 
-    // Verify that the alpha LogMAR values are equally-spaced, just to not be insane
-    const sortedAlphaLogMARs = [...alphaPriors.keys()].sort();
-    const expectedLogMARGap = sortedAlphaLogMARs[1] - sortedAlphaLogMARs[0];
-    for (const [idx, alphaLogMAR] of sortedAlphaLogMARs.entries()) {
-      if (idx == 0) {
+    const alphaPriorsLogMARThousandths = new Map<number, number>();
+    for (const [alphaLogMAR, probability] of alphaPriors.entries()) {
+      const logMARThousandths = Math.floor(
+        alphaLogMAR * MAXIMUM_LOGMAR_PRECISION
+      );
+      if (logMARThousandths !== alphaLogMAR * MAXIMUM_LOGMAR_PRECISION) {
+        throw new Error(
+          `The maximum LogMAR precision supported by this engine is 1/${MAXIMUM_LOGMAR_PRECISION} LogMAR, ` +
+            `but provided LogMAR value ${alphaLogMAR} has granularity finer than that`
+        );
+      }
+
+      alphaPriorsLogMARThousandths.set(logMARThousandths, probability);
+    }
+
+    // Verify that the alpha LogMAR values don't exceed our resolution and are equally-spaced, just to not be insane
+    const sortedAlphaLogMARThousandths = [
+      ...alphaPriorsLogMARThousandths.keys(),
+    ].sort();
+    const expectedLogMARGap =
+      sortedAlphaLogMARThousandths[1] - sortedAlphaLogMARThousandths[0];
+    for (const [
+      idx,
+      alphaLogMARThousandths,
+    ] of sortedAlphaLogMARThousandths.entries()) {
+      if (idx === 0) {
         continue;
       }
-      const prevLogMAR = sortedAlphaLogMARs[idx - 1];
-      const actualLogMARGap = alphaLogMAR - prevLogMAR;
+      const prevLogMARThousandths = sortedAlphaLogMARThousandths[idx - 1];
+      const actualLogMARGap = alphaLogMARThousandths - prevLogMARThousandths;
       if (actualLogMARGap != expectedLogMARGap) {
         throw new Error(
-          `The gap between alpha priors is inconsistent: expected ${expectedLogMARGap} gap throughout, but found ${actualLogMARGap} gap between ${alphaLogMAR} and ${prevLogMAR}`
+          `The gap between alpha priors is inconsistent: expected ${
+            expectedLogMARGap / MAXIMUM_LOGMAR_PRECISION
+          } gap throughout, but ` +
+            `found ${actualLogMARGap / MAXIMUM_LOGMAR_PRECISION} gap between ${
+              alphaLogMARThousandths / MAXIMUM_LOGMAR_PRECISION
+            } and ${prevLogMARThousandths / MAXIMUM_LOGMAR_PRECISION}`
         );
       }
     }
@@ -98,10 +153,11 @@ export class UserLogMARGuessingEngine {
       );
     }
 
-    this.alphaPriors = new Map(alphaPriors);
+    this.alphaPriors = new Map(alphaPriorsLogMARThousandths);
     this.logMARGap = expectedLogMARGap;
     this.numDistinctOptotypes = numDistinctOptotypes;
     this.confidenceInterval = confidenceInterval;
+    // this.psychometricCore = sigmoidFunction;
   }
 
   /**
@@ -114,20 +170,29 @@ export class UserLogMARGuessingEngine {
     // TODO Use a better method of choosing the next trial - prior mean is the basic version,
     // but we can do better with an entropy minimization scheme. I don't do this now because
     // it's not that important - just reduces the number of letters we have to show the user.
-    let expectedValue = 0;
+    let expectedValueThousandths = 0;
     for (const [alphaLogMAR, probability] of this.alphaPriors) {
-      expectedValue += alphaLogMAR * probability;
+      expectedValueThousandths += alphaLogMAR * probability;
     }
 
-    return expectedValue;
+    return Math.floor(expectedValueThousandths) / MAXIMUM_LOGMAR_PRECISION;
   }
 
   /**
    * Updates the engine with the result of a test.
-   * @param logMARTested The size of the letter that was tested, in LogMAR.
+   * @param logMARTested The size of the letter that was tested, in LogMAR. **NOTE:** Must not exceed thousandths of LogMAR!
    * @param gotCorrectResult Whether the user correctly ascertained the letter (either through guessing or actually identifying).
    */
   updateGivenTrialResult(logMARTested: number, gotCorrectResult: boolean) {
+    const testedLogMARThousandths = Math.floor(
+      logMARTested * MAXIMUM_LOGMAR_PRECISION
+    );
+    if (testedLogMARThousandths !== logMARTested * MAXIMUM_LOGMAR_PRECISION) {
+      throw new Error(
+        `Maximum LogMAR resolution is 1/${MAXIMUM_LOGMAR_PRECISION} but provided tested LogMAR ${logMARTested} exceeds this resolution`
+      );
+    }
+
     const alphaRelativeBeliefs: Map<number, number> = new Map();
 
     // We'll use this to re-normalize relative belief in alpha back to a probability distribution
@@ -140,13 +205,14 @@ export class UserLogMARGuessingEngine {
     // 2. Compare what that alpha says about the likelihood of getting it right vs whether the user actually got it right
     // 3. Update the likelihood of that alpha based on how close/far the Ψ(alpha, logMARTested) was to the user's actual result
     // The resulting grid of (alpha, probability) form our priors.
-    for (const [alphaLogMAR, probabilityOfAlpha] of this.alphaPriors) {
+    for (const [alphaLogMARThousandths, probabilityOfAlpha] of this
+      .alphaPriors) {
       // This is the likelihood of the user getting it correct at the given alpha & tested LogMAR size
       const likelihoodOfCorrectGivenAlpha =
         UserLogMARGuessingEngine.calculateLogisticPsychometric(
-          logMARTested,
-          alphaLogMAR,
-          UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_BETA,
+          testedLogMARThousandths,
+          alphaLogMARThousandths,
+          UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
           1 / this.numDistinctOptotypes,
           UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA
         );
@@ -165,7 +231,7 @@ export class UserLogMARGuessingEngine {
       // - Alphas that confidently state the user will get it right and are wrong are adjusted down a lot
       const relativeBeliefInAlpha = probabilityOfAlpha * likelihoodOfGivenAlpha;
 
-      alphaRelativeBeliefs.set(alphaLogMAR, relativeBeliefInAlpha);
+      alphaRelativeBeliefs.set(alphaLogMARThousandths, relativeBeliefInAlpha);
 
       sumRelativeBelief += relativeBeliefInAlpha;
     }
@@ -194,10 +260,12 @@ export class UserLogMARGuessingEngine {
     intervalUpperBound: number;
   } {
     // Get the guessed LogMAR (which is the mean of the alpha probability distribution)
-    let guessedLogMAR: number = 0;
-    for (const [alphaLogMAR, alphaProbability] of this.alphaPriors) {
-      guessedLogMAR += alphaLogMAR * alphaProbability;
+    let guessedLogMARThousandths: number = 0;
+    for (const [alphaLogMARThousandths, alphaProbability] of this.alphaPriors) {
+      guessedLogMARThousandths += alphaLogMARThousandths * alphaProbability;
     }
+    const guessedLogMAR =
+      Math.round(guessedLogMARThousandths) / MAXIMUM_LOGMAR_PRECISION;
 
     const halfConfidenceInterval = this.confidenceInterval / 2;
     const lowerBoundProbabilityMass = halfConfidenceInterval;
@@ -209,8 +277,8 @@ export class UserLogMARGuessingEngine {
     // left to right
     const sortedAlphaLogMARs = [...this.alphaPriors.keys()].sort();
     const sumProbabilitySoFar = 0;
-    let lowerBound;
-    let upperBound;
+    let lowerBoundThousandths;
+    let upperBoundThousandths;
     for (const alphaLogMAR of sortedAlphaLogMARs) {
       const probabilityForAlpha = this.alphaPriors.get(alphaLogMAR);
       if (probabilityForAlpha === undefined) {
@@ -219,8 +287,8 @@ export class UserLogMARGuessingEngine {
         );
       }
 
-      if (lowerBound === undefined) {
-        lowerBound =
+      if (lowerBoundThousandths === undefined) {
+        lowerBoundThousandths =
           UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
             sumProbabilitySoFar,
             alphaLogMAR,
@@ -230,8 +298,8 @@ export class UserLogMARGuessingEngine {
           );
       }
 
-      if (upperBound === undefined) {
-        upperBound =
+      if (upperBoundThousandths === undefined) {
+        upperBoundThousandths =
           UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
             sumProbabilitySoFar,
             alphaLogMAR,
@@ -242,12 +310,12 @@ export class UserLogMARGuessingEngine {
       }
     }
 
-    if (lowerBound === undefined) {
+    if (lowerBoundThousandths === undefined) {
       throw new Error(
         "Somehow we didn't find the confidence interval lower bound after iterating through the entire alpha probability distribution; this is a bug in the code"
       );
     }
-    if (upperBound === undefined) {
+    if (upperBoundThousandths === undefined) {
       throw new Error(
         "Somehow we didn't find the confidence interval upper bound after iterating through the entire alpha probability distribution; this is a bug in the code"
       );
@@ -255,9 +323,23 @@ export class UserLogMARGuessingEngine {
 
     return {
       guessedLogMAR: guessedLogMAR,
-      intervalLowerBound: lowerBound,
-      intervalUpperBound: upperBound,
+      intervalLowerBound: lowerBoundThousandths / MAXIMUM_LOGMAR_PRECISION,
+      intervalUpperBound: upperBoundThousandths / MAXIMUM_LOGMAR_PRECISION,
     };
+  }
+
+  getAlphaProbabilities(): Map<number, number> {
+    const returnVal = new Map<number, number>();
+    for (const [
+      alphaLogMARThousandths,
+      probabilities,
+    ] of this.alphaPriors.entries()) {
+      returnVal.set(
+        alphaLogMARThousandths / MAXIMUM_LOGMAR_PRECISION,
+        probabilities
+      );
+    }
+    return new Map(returnVal);
   }
 
   /**

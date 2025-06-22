@@ -5,6 +5,8 @@ interface CalibrationScreenProps {
   onGoHome: () => void;
 }
 
+// TODO Contemplate using a credit card-sizing algorithm like myeyes.ai
+
 const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
   const [heightCm, setHeightCm] = useState<string>("");
   const [error, setError] = useState<string>("");
