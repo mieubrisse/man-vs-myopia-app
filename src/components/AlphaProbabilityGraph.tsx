@@ -1,14 +1,13 @@
 import React from "react";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Area,
 } from "recharts";
 
 interface AlphaProbabilityGraphProps {
@@ -18,7 +17,7 @@ interface AlphaProbabilityGraphProps {
 const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({ data }) => {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart
+      <BarChart
         data={data}
         margin={{
           top: 5,
@@ -37,24 +36,8 @@ const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({ data }) =
         <YAxis />
         <Tooltip formatter={(value: number) => [value.toExponential(2), "Probability"]} />
         <Legend />
-        <Area
-          type="monotone"
-          dataKey="probability"
-          stroke="none"
-          fill="#8884d8"
-          fillOpacity={0.3}
-          isAnimationActive={true}
-          animationDuration={200}
-        />
-        <Line
-          type="monotone"
-          dataKey="probability"
-          stroke="#8884d8"
-          dot={false}
-          isAnimationActive={true}
-          animationDuration={200}
-        />
-      </LineChart>
+        <Bar dataKey="probability" fill="#3b82f6" />
+      </BarChart>
     </ResponsiveContainer>
   );
 };
