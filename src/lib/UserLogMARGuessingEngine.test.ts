@@ -18,6 +18,32 @@ describe("UserLogMARGuessingEngine", () => {
       ).toThrowError("LogMAR precision");
     });
 
+    it("should throw an error on alpha probability that doesn't sum to one", () => {
+      expect(
+        () =>
+          new UserLogMARGuessingEngine(
+            new Map([
+              [0.1, 0.3],
+              [0.2, 0.3],
+              [0.3, 0.2],
+            ]),
+            10,
+            0.95
+          )
+      ).toThrowError("Total alpha probability must == 1.0");
+    });
+
+    it("should handle slight floating-point deviations gracefully", () => {
+      new UserLogMARGuessingEngine(
+        new Map([
+          [0.1, 0.7],
+          [0.2, 0.3],
+        ]),
+        10,
+        0.95
+      );
+    });
+
     it("should throw on non-even gaps in the alpha priors grid", () => {
       expect(
         () =>
@@ -34,9 +60,7 @@ describe("UserLogMARGuessingEngine", () => {
     });
 
     it("should throw on < 2 alpha priors", () => {
-      expect(
-        () => new UserLogMARGuessingEngine(new Map([[0.0, 0.3]]), 10, 0.95)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(new Map([[0.0, 0.3]]), 10, 0.95)).toThrowError();
     });
 
     it("should throw on non-(0.0,0.1) confidence interval", () => {
@@ -47,24 +71,16 @@ describe("UserLogMARGuessingEngine", () => {
       ]);
 
       // 0.0 confidence should fail
-      expect(
-        () => new UserLogMARGuessingEngine(alphaPriors, 10, 0.0)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(alphaPriors, 10, 0.0)).toThrowError();
 
       // As should 1.0
-      expect(
-        () => new UserLogMARGuessingEngine(alphaPriors, 10, 1.0)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(alphaPriors, 10, 1.0)).toThrowError();
 
       // As should negative numbers
-      expect(
-        () => new UserLogMARGuessingEngine(alphaPriors, 10, -0.2)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(alphaPriors, 10, -0.2)).toThrowError();
 
       // As should positive numbers beyond 1
-      expect(
-        () => new UserLogMARGuessingEngine(alphaPriors, 10, 1.1)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(alphaPriors, 10, 1.1)).toThrowError();
     });
 
     it("should throw on non-positive-integer number of optotypes", () => {
@@ -75,19 +91,13 @@ describe("UserLogMARGuessingEngine", () => {
       ]);
 
       // 0 optotypes should fail
-      expect(
-        () => new UserLogMARGuessingEngine(alphaPriors, 0, 0.5)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(alphaPriors, 0, 0.5)).toThrowError();
 
       // As should negative
-      expect(
-        () => new UserLogMARGuessingEngine(alphaPriors, -2, 0.5)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(alphaPriors, -2, 0.5)).toThrowError();
 
       // As should decimals
-      expect(
-        () => new UserLogMARGuessingEngine(alphaPriors, 1.5, 0.5)
-      ).toThrowError();
+      expect(() => new UserLogMARGuessingEngine(alphaPriors, 1.5, 0.5)).toThrowError();
     });
 
     it("should create a deep copy of the alpha priors", () => {
@@ -126,18 +136,18 @@ describe("UserLogMARGuessingEngine", () => {
 
     it("proposes with an uneven distribution (necessary when evaluating a user who's been evaluated previously)", () => {
       const priors = new Map<number, number>([
-        [0.0, 0.1],
-        [0.1, 0.3],
-        [0.2, 0.6],
-        [0.3, 0.4],
-        [0.4, 0.3],
+        [0.0, 0.05],
+        [0.1, 0.1],
+        [0.2, 0.4],
+        [0.3, 0.3],
+        [0.4, 0.15],
       ]);
 
       const engine = new UserLogMARGuessingEngine(priors, 10, 0.95);
 
       const proposal = engine.proposeNextTrialLogMAR();
 
-      expect(proposal).toBe(0.39);
+      expect(proposal).toBeCloseTo(0.24);
     });
   });
 
@@ -186,10 +196,7 @@ describe("UserLogMARGuessingEngine", () => {
 
       const actualPosteriors = engine.getAlphaProbabilities();
 
-      for (const [
-        logMAR,
-        expectedProbability,
-      ] of expectedPosteriors.entries()) {
+      for (const [logMAR, expectedProbability] of expectedPosteriors.entries()) {
         const actualProbability = actualPosteriors.get(logMAR);
         expect(actualProbability).toBeCloseTo(expectedProbability);
       }
@@ -272,25 +279,18 @@ describe("UserLogMARGuessingEngine", () => {
   describe("getConfidenceIntervalBoundInBucket", () => {
     it("should throw if the confidence interval bound was crossed in a previous bucket", () => {
       expect(() =>
-        UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
-          0.5,
-          1.0,
-          0.1,
-          0.1,
-          0.4
-        )
+        UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(0.5, 1.0, 0.1, 0.1, 0.4)
       ).toThrowError();
     });
 
     it("should return undefined if the confidence interval isn't crossed in this bucket", () => {
-      const result =
-        UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
-          0.5,
-          1.0,
-          0.1,
-          0.1,
-          0.9
-        );
+      const result = UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
+        0.5,
+        1.0,
+        0.1,
+        0.1,
+        0.9
+      );
       expect(result).toBeUndefined();
     });
 
@@ -303,6 +303,46 @@ describe("UserLogMARGuessingEngine", () => {
         0.75
       );
       expect(bound).toBe(0.1);
+    });
+  });
+
+  describe("End-to-end tests", () => {
+    it("verifies the confidence interval after getting two symbols right at 0.4 logMAR", () => {
+      const alphaPriors = new Map<number, number>();
+      const minLogMAR = -0.3;
+      const maxLogMAR = 1.2;
+      const step = 0.01;
+
+      // A uniform prior
+      let totalEntries = 0;
+      for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
+        totalEntries++;
+      }
+      const probability = 1 / totalEntries;
+
+      for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
+        // Round to avoid floating point issues
+        const roundedLogMAR = Math.round(logMAR * 1000) / 1000;
+        alphaPriors.set(roundedLogMAR, probability);
+      }
+
+      const numDistinctOptotypes = 8; // Landolt C has 8 orientations
+      const confidenceInterval = 0.95; // 95% confidence
+
+      const engine = new UserLogMARGuessingEngine(
+        alphaPriors,
+        numDistinctOptotypes,
+        confidenceInterval
+      );
+
+      engine.updateGivenTrialResult(0.4, true);
+      engine.updateGivenTrialResult(0.4, true);
+
+      const result = engine.guessUserLogMAR();
+
+      expect(result.guessedLogMAR).toBeCloseTo(0.045, 4);
+      expect(result.intervalLowerBound).toBeCloseTo(-0.2885797, 4);
+      expect(result.intervalUpperBound).toBeCloseTo(0.5092688, 4);
     });
   });
 });
