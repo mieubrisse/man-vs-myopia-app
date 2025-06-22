@@ -3,6 +3,8 @@ import "./LogMARChart.css";
 import { LandoltCOptotype } from "./LandoltCOptotype";
 import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
 import AlphaProbabilityGraph from "./AlphaProbabilityGraph";
+import ResponseIndicator from "./ResponseIndicator";
+import ConfidenceProgress from "./ConfidenceProgress";
 
 // Speech Recognition interfaces
 interface SpeechRecognition extends EventTarget {
@@ -65,6 +67,7 @@ interface TopPanelDebugInfo {
   guessedLogMAR: number;
   intervalLowerBound: number;
   intervalUpperBound: number;
+  confidenceIntervalWidth: number;
 }
 
 interface LetterState {
@@ -169,6 +172,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const [alphaProbabilities, setAlphaProbabilities] = useState<
     { logMAR: number; probability: number }[]
   >([]);
+  const [initialConfidenceWidth, setInitialConfidenceWidth] = useState<number | null>(null);
 
   // Track scores for each LogMAR value: Map<LogMAR, {attempted: number, correct: number}>
   const [logMARScoreMap, setLogMARScoreMap] = useState<
@@ -246,17 +250,9 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   // Helper to generate a row of random letters
   const generateRowLetters = useCallback((): LetterState[] => {
     const orientations: LetterState[] = [];
-    let lastOrientation = "";
 
     for (let i = 0; i < NUM_LETTERS_PER_LINE; i++) {
-      let availableOrientations = LANDOLT_C_ORIENTATIONS;
-
-      // If this isn't the first letter, exclude the previous orientation
-      if (lastOrientation) {
-        availableOrientations = LANDOLT_C_ORIENTATIONS.filter(
-          (orientation) => orientation !== lastOrientation
-        );
-      }
+      const availableOrientations = LANDOLT_C_ORIENTATIONS;
 
       const randomIndex = Math.floor(Math.random() * availableOrientations.length);
       const selectedOrientation = availableOrientations[randomIndex];
@@ -265,8 +261,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         orientation: selectedOrientation,
         status: "pending",
       });
-
-      lastOrientation = selectedOrientation;
     }
 
     return orientations;
@@ -300,6 +294,9 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         ([logMAR, probability]) => ({ logMAR, probability })
       );
       setAlphaProbabilities(initialProbs);
+
+      const { intervalLowerBound, intervalUpperBound } = guessingEngine.guessUserLogMAR();
+      setInitialConfidenceWidth(intervalUpperBound - intervalLowerBound);
     }
   }, [guessingEngine]);
 
@@ -409,12 +406,14 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             const currentProbs = Array.from(guessingEngine.getAlphaProbabilities().entries()).map(
               ([logMAR, probability]) => ({ logMAR, probability })
             );
+            const confidenceIntervalWidth = intervalUpperBound - intervalLowerBound;
 
             setTopPanelDebugInfo({
               guessedLogMAR,
               intervalLowerBound,
               intervalUpperBound,
               nextTrialLogMAR,
+              confidenceIntervalWidth,
             });
             setAlphaProbabilities(currentProbs);
 
@@ -633,7 +632,9 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 )} LogMAR`}</div>
                 <div>{`Confidence Interval: [${topPanelDebugInfo.intervalLowerBound.toFixed(
                   3
-                )}, ${topPanelDebugInfo.intervalUpperBound.toFixed(3)}]`}</div>
+                )}, ${topPanelDebugInfo.intervalUpperBound.toFixed(
+                  3
+                )}] (width: ${topPanelDebugInfo.confidenceIntervalWidth.toFixed(3)})`}</div>
               </div>
             ) : (
               <div>Awaiting first result...</div>
@@ -657,7 +658,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         style={{
           position: "relative",
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
           width: "100%",
@@ -666,9 +667,22 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       >
         <div
           style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            height: "100%",
+            padding: "1rem",
+            boxSizing: "border-box",
+          }}
+        >
+          <ResponseIndicator responses={currentLetterIndex} total={NUM_LETTERS_PER_LINE} />
+        </div>
+        <div
+          style={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            flex: 1,
           }}
         >
           {currentRowLetters.length > 0 && letterSize ? (
@@ -723,6 +737,26 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           ) : (
             <div>Loading chart...</div>
           )}
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            right: 0,
+            top: 0,
+            height: "100%",
+            padding: "1rem",
+            boxSizing: "border-box",
+          }}
+        >
+          <ConfidenceProgress
+            progress={
+              topPanelDebugInfo && initialConfidenceWidth
+                ? 1 -
+                  (topPanelDebugInfo.confidenceIntervalWidth - TARGET_CONFIDENCE_INTERVAL_WIDTH) /
+                    (initialConfidenceWidth - TARGET_CONFIDENCE_INTERVAL_WIDTH)
+                : 0
+            }
+          />
         </div>
       </div>
       {alphaProbabilities.length > 0 && (
