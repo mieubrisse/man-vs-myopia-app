@@ -1,14 +1,5 @@
 import React from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface AlphaProbabilityGraphProps {
   data: { logMAR: number; probability: number }[];
@@ -35,7 +26,6 @@ const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({ data }) =
         />
         <YAxis />
         <Tooltip formatter={(value: number) => [value.toExponential(2), "Probability"]} />
-        <Legend />
         <Bar dataKey="probability" fill="#3b82f6" />
       </BarChart>
     </ResponsiveContainer>
