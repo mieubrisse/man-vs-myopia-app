@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import "./LogMARChart.css";
 import { LandoltCOptotype } from "./LandoltCOptotype";
 import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
+import AlphaProbabilityGraph from "./AlphaProbabilityGraph";
 
 // Speech Recognition interfaces
 interface SpeechRecognition extends EventTarget {
@@ -59,7 +60,7 @@ interface DebugInfo {
   isFinal: boolean;
 }
 
-interface GuessingEngineDebugInfo {
+interface TopPanelDebugInfo {
   nextTrialLogMAR: number;
   guessedLogMAR: number;
   intervalLowerBound: number;
@@ -164,8 +165,10 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const [currentLogMAR, setCurrentLogMAR] = useState(STARTING_LOGMAR);
   const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
-  const [guessingEngineDebugInfo, setGuessingEngineDebugInfo] =
-    useState<GuessingEngineDebugInfo | null>(null);
+  const [topPanelDebugInfo, setTopPanelDebugInfo] = useState<TopPanelDebugInfo | null>(null);
+  const [alphaProbabilities, setAlphaProbabilities] = useState<
+    { logMAR: number; probability: number }[]
+  >([]);
 
   // Track scores for each LogMAR value: Map<LogMAR, {attempted: number, correct: number}>
   const [logMARScoreMap, setLogMARScoreMap] = useState<
@@ -291,6 +294,15 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     isAssessmentFinishedRef.current = isAssessmentFinished;
   }, [currentLetterIndex, currentLogMAR, isAssessmentFinished]);
 
+  useEffect(() => {
+    if (guessingEngine) {
+      const initialProbs = Array.from(guessingEngine.getAlphaProbabilities().entries()).map(
+        ([logMAR, probability]) => ({ logMAR, probability })
+      );
+      setAlphaProbabilities(initialProbs);
+    }
+  }, [guessingEngine]);
+
   // Handle finishing the assessment
   const finishAssessment = useCallback(() => {
     let totalCorrect = 0;
@@ -394,12 +406,17 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             const { guessedLogMAR, intervalLowerBound, intervalUpperBound } =
               guessingEngine.guessUserLogMAR();
             const nextTrialLogMAR = guessingEngine.proposeNextTrialLogMAR();
-            setGuessingEngineDebugInfo({
+            const currentProbs = Array.from(guessingEngine.getAlphaProbabilities().entries()).map(
+              ([logMAR, probability]) => ({ logMAR, probability })
+            );
+
+            setTopPanelDebugInfo({
               guessedLogMAR,
               intervalLowerBound,
               intervalUpperBound,
               nextTrialLogMAR,
             });
+            setAlphaProbabilities(currentProbs);
 
             setCurrentRowLetters((prev) => {
               if (idx >= prev.length) return prev;
@@ -534,7 +551,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         flexDirection: "column",
         alignItems: "center",
         width: "100vw",
-        minHeight: "100vh",
+        height: "100vh",
         margin: 0,
         padding: 0,
         boxSizing: "border-box",
@@ -543,82 +560,96 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       {/* Speech Recognition Debug Info (fixed at top) */}
       <div
         style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
+          width: "100%",
           zIndex: 1000,
           padding: "1rem",
           backgroundColor: "#f0f0f0",
           borderBottom: "2px solid #ccc",
           fontFamily: "monospace",
           fontSize: "1rem",
-          maxHeight: "300px",
+          height: "20vh",
           overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <div
-          style={{
-            marginBottom: "0.5rem",
-            fontWeight: "bold",
-            fontSize: "1.1rem",
-          }}
-        >
-          Speech Recognition Debug Info:
-        </div>
-        {debugInfo.length === 0 ? (
-          <div style={{ color: "#666" }}>Waiting for speech input...</div>
-        ) : (
-          debugInfo.map((info, index) => (
+        <div style={{ display: "flex", flexDirection: "row", flex: 1 }}>
+          <div style={{ flex: 1, paddingRight: "1rem" }}>
             <div
-              key={info.timestamp}
               style={{
                 marginBottom: "0.5rem",
-                padding: "0.25rem",
-                backgroundColor: index === debugInfo.length - 1 ? "#e0e0e0" : "transparent",
+                fontWeight: "bold",
+                fontSize: "1.1rem",
               }}
             >
-              {`[${index + 1}] "${info.transcript}" (${(info.confidence * 100).toFixed(
-                1
-              )}% confidence)`}
-              {info.utterance && ` → Detected utterance: "${info.utterance}"`}
-              {!info.isFinal && " (interim)"}
+              Speech Recognition Debug Info:
             </div>
-          ))
-        )}
+            {debugInfo.length === 0 ? (
+              <div style={{ color: "#666" }}>Waiting for speech input...</div>
+            ) : (
+              debugInfo.map((info, index) => (
+                <div
+                  key={info.timestamp}
+                  style={{
+                    marginBottom: "0.5rem",
+                    padding: "0.25rem",
+                    backgroundColor: index === debugInfo.length - 1 ? "#e0e0e0" : "transparent",
+                  }}
+                >
+                  {`[${index + 1}] "${info.transcript}" (${(info.confidence * 100).toFixed(
+                    1
+                  )}% confidence)`}
+                  {info.utterance && ` → Detected utterance: "${info.utterance}"`}
+                  {!info.isFinal && " (interim)"}
+                </div>
+              ))
+            )}
+          </div>
 
-        {/* New pane for guessing engine */}
-        <div
-          style={{
-            marginTop: "1rem",
-            paddingTop: "1rem",
-            borderTop: "1px solid #ccc",
-          }}
-        >
+          {/* New pane for guessing engine */}
           <div
             style={{
-              fontWeight: "bold",
-              fontSize: "1.1rem",
-              marginBottom: "0.5rem",
+              flex: 1,
+              paddingLeft: "1rem",
+              borderLeft: "1px solid #ccc",
             }}
           >
-            Guessing Engine State:
-          </div>
-          {guessingEngineDebugInfo ? (
-            <div>
-              <div>{`Next trial proposal: ${guessingEngineDebugInfo.nextTrialLogMAR.toFixed(
-                3
-              )} LogMAR`}</div>
-              <div>{`Current acuity guess: ${guessingEngineDebugInfo.guessedLogMAR.toFixed(
-                3
-              )} LogMAR`}</div>
-              <div>{`Confidence Interval: [${guessingEngineDebugInfo.intervalLowerBound.toFixed(
-                3
-              )}, ${guessingEngineDebugInfo.intervalUpperBound.toFixed(3)}]`}</div>
+            <div
+              style={{
+                fontWeight: "bold",
+                fontSize: "1.1rem",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Guessing Engine State:
             </div>
-          ) : (
-            <div>Awaiting first result...</div>
-          )}
+            {topPanelDebugInfo ? (
+              <div>
+                <div>{`Next trial proposal: ${topPanelDebugInfo.nextTrialLogMAR.toFixed(
+                  3
+                )} LogMAR`}</div>
+                <div>{`Current acuity guess: ${topPanelDebugInfo.guessedLogMAR.toFixed(
+                  3
+                )} LogMAR`}</div>
+                <div>{`Confidence Interval: [${topPanelDebugInfo.intervalLowerBound.toFixed(
+                  3
+                )}, ${topPanelDebugInfo.intervalUpperBound.toFixed(3)}]`}</div>
+              </div>
+            ) : (
+              <div>Awaiting first result...</div>
+            )}
+          </div>
+        </div>
+        <div
+          style={{
+            paddingTop: "1rem",
+            marginTop: "1rem",
+            borderTop: "1px solid #ccc",
+            textAlign: "center",
+            fontWeight: "bold",
+          }}
+        >
+          {`Current row LogMAR: ${currentLogMAR.toFixed(3)}`}
         </div>
       </div>
       {/* Centered chart row below debug box */}
@@ -629,8 +660,8 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          width: "100vw",
-          minHeight: "100vh",
+          width: "100%",
+          height: "55vh",
         }}
       >
         <div
@@ -694,6 +725,19 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           )}
         </div>
       </div>
+      {alphaProbabilities.length > 0 && (
+        <div
+          style={{
+            width: "100%",
+            backgroundColor: "#f0f0f0",
+            borderTop: "2px solid #ccc",
+            zIndex: 1000,
+            height: "25vh",
+          }}
+        >
+          <AlphaProbabilityGraph data={alphaProbabilities} />
+        </div>
+      )}
     </div>
   );
 };
