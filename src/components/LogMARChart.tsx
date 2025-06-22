@@ -86,7 +86,7 @@ interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
   calibrationData?: CalibrationData | null;
   viewingConfiguration?: ViewingConfiguration | null;
-  guessingEngine?: UserLogMARGuessingEngine;
+  guessingEngine: UserLogMARGuessingEngine;
   onAssessmentComplete?: (results: {
     logMARScore: number;
     correctLetters: number;
@@ -136,7 +136,7 @@ Trade-off rule of thumb
   •	Halving the confidence interval width roughly doubles the number of informative trials once you're below ± 0.10 logMAR.
   •	Below ± 0.03 logMAR the benefit/effort curve flattens; observer variability (blinks, attention) dominates.
 */
-// const LOGMAR_CONFIDENCE_INTERVAL: number = 0.05;
+const TARGET_CONFIDENCE_INTERVAL_WIDTH = 0.05;
 
 const LogMARChart: React.FC<LogMARChartProps> = ({
   onLetterValidated,
@@ -301,14 +301,15 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       totalAttempted += scores.attempted;
     }
 
-    const logMARScore = currentLogMAR; // Use the current LogMAR as the score
+    const finalLogMARScore = guessingEngine.guessUserLogMAR().guessedLogMAR;
+
     onAssessmentComplete?.({
-      logMARScore,
+      logMARScore: finalLogMARScore,
       correctLetters: totalCorrect,
       totalLetters: totalAttempted,
       attemptedLetters: totalAttempted,
     });
-  }, [logMARScoreMap, currentLogMAR, onAssessmentComplete]);
+  }, [logMARScoreMap, onAssessmentComplete, guessingEngine]);
 
   // Store stable references to functions for use in event handlers
   const finishAssessmentRef = useRef(finishAssessment);
@@ -389,21 +390,16 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             const isCorrect = orientation === currentLetter.orientation;
 
             // Update the guessing engine in the background
-            if (guessingEngine) {
-              // We need to truncate to thousandths of LogMAR precision because the engine doesn't
-              // accept anything more
-              const roundedLogMAR = Math.floor(currentLogMARRef.current * 1000) / 1000;
-              guessingEngine.updateGivenTrialResult(roundedLogMAR, isCorrect);
-              const { guessedLogMAR, intervalLowerBound, intervalUpperBound } =
-                guessingEngine.guessUserLogMAR();
-              const nextTrialLogMAR = guessingEngine.proposeNextTrialLogMAR();
-              setGuessingEngineDebugInfo({
-                guessedLogMAR,
-                intervalLowerBound,
-                intervalUpperBound,
-                nextTrialLogMAR,
-              });
-            }
+            guessingEngine.updateGivenTrialResult(currentLogMARRef.current, isCorrect);
+            const { guessedLogMAR, intervalLowerBound, intervalUpperBound } =
+              guessingEngine.guessUserLogMAR();
+            const nextTrialLogMAR = guessingEngine.proposeNextTrialLogMAR();
+            setGuessingEngineDebugInfo({
+              guessedLogMAR,
+              intervalLowerBound,
+              intervalUpperBound,
+              nextTrialLogMAR,
+            });
 
             setCurrentRowLetters((prev) => {
               if (idx >= prev.length) return prev;
@@ -456,25 +452,30 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       currentRowLetters.every((l) => l.status === "correct" || l.status === "incorrect") &&
       !isAssessmentFinished
     ) {
-      if (currentLogMAR > 0.0) {
-        const nextLogMAR = currentLogMAR - 0.1;
-        setCurrentLogMAR(nextLogMAR);
-        const nextRow = generateRowLetters();
-        nextRow[0].status = "current";
-        setCurrentRowLetters(nextRow);
-        setCurrentLetterIndex(0);
-      } else {
+      const { intervalLowerBound, intervalUpperBound } = guessingEngine.guessUserLogMAR();
+      const confidenceIntervalWidth = intervalUpperBound - intervalLowerBound;
+
+      if (confidenceIntervalWidth <= TARGET_CONFIDENCE_INTERVAL_WIDTH) {
         setIsAssessmentFinished(true);
         finishAssessment();
         if (recognitionRef.current) recognitionRef.current.stop();
+        return;
       }
+
+      const nextLogMAR = guessingEngine.proposeNextTrialLogMAR();
+
+      setCurrentLogMAR(nextLogMAR);
+      const nextRow = generateRowLetters();
+      nextRow[0].status = "current";
+      setCurrentRowLetters(nextRow);
+      setCurrentLetterIndex(0);
     }
   }, [
     currentRowLetters,
     isAssessmentFinished,
-    currentLogMAR,
     generateRowLetters,
     finishAssessment,
+    guessingEngine,
   ]);
 
   // Log calibration and viewing configuration data when component mounts
