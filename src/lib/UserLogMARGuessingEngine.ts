@@ -39,6 +39,7 @@ export class UserLogMARGuessingEngine {
   */
 
   private alphaPriors: Map<number, number>;
+  private logMARGap: number;
   private numDistinctOptotypes: number;
   private confidenceInterval: number;
 
@@ -60,7 +61,45 @@ export class UserLogMARGuessingEngine {
     numDistinctOptotypes: number,
     confidenceInterval: number
   ) {
+    if (alphaPriors.size < 2) {
+      throw new Error("Must have at least two alpha priors");
+    }
+
+    // Verify that the alpha LogMAR values are equally-spaced, just to not be insane
+    const sortedAlphaLogMARs = [...alphaPriors.keys()].sort();
+    const expectedLogMARGap = sortedAlphaLogMARs[1] - sortedAlphaLogMARs[0];
+    for (const [idx, alphaLogMAR] of sortedAlphaLogMARs.entries()) {
+      if (idx == 0) {
+        continue;
+      }
+      const prevLogMAR = sortedAlphaLogMARs[idx - 1];
+      const actualLogMARGap = alphaLogMAR - prevLogMAR;
+      if (actualLogMARGap != expectedLogMARGap) {
+        throw new Error(
+          `The gap between alpha priors is inconsistent: expected ${expectedLogMARGap} gap throughout, but found ${actualLogMARGap} gap between ${alphaLogMAR} and ${prevLogMAR}`
+        );
+      }
+    }
+
+    if (confidenceInterval <= 0 || confidenceInterval >= 1.0) {
+      throw new Error(
+        `Confidence interval must be (0.0, 1.0) but was ${confidenceInterval}`
+      );
+    }
+
+    if (numDistinctOptotypes <= 0) {
+      throw new Error(
+        `Number of distinct optotypes must be > 0 but was ${numDistinctOptotypes}`
+      );
+    }
+    if (!Number.isInteger(numDistinctOptotypes)) {
+      throw new Error(
+        `Number of distinct optotypes must be an integer but was ${numDistinctOptotypes}`
+      );
+    }
+
     this.alphaPriors = new Map(alphaPriors);
+    this.logMARGap = expectedLogMARGap;
     this.numDistinctOptotypes = numDistinctOptotypes;
     this.confidenceInterval = confidenceInterval;
   }
@@ -154,10 +193,71 @@ export class UserLogMARGuessingEngine {
     intervalLowerBound: number;
     intervalUpperBound: number;
   } {
+    // Get the guessed LogMAR (which is the mean of the alpha probability distribution)
     let guessedLogMAR: number = 0;
     for (const [alphaLogMAR, alphaProbability] of this.alphaPriors) {
       guessedLogMAR += alphaLogMAR * alphaProbability;
     }
+
+    const halfConfidenceInterval = this.confidenceInterval / 2;
+    const lowerBoundProbabilityMass = halfConfidenceInterval;
+    const upperBoundProbabilityMass = 1 - halfConfidenceInterval;
+
+    // Find the lower & upper LogMAR values between which is >= CONFIDENCE_INTERVAL belief
+    // We do this by building a stepwise probability density function, treating each alpha LogMAR's pointwise probability
+    // as equally distributed across a bin of width logMARGap, and then summing the probability density function from
+    // left to right
+    const sortedAlphaLogMARs = [...this.alphaPriors.keys()].sort();
+    const sumProbabilitySoFar = 0;
+    let lowerBound;
+    let upperBound;
+    for (const alphaLogMAR of sortedAlphaLogMARs) {
+      const probabilityForAlpha = this.alphaPriors.get(alphaLogMAR);
+      if (probabilityForAlpha === undefined) {
+        throw new Error(
+          `Expected to find logMAR ${alphaLogMAR} in the alpha probabilities map, but didn't`
+        );
+      }
+
+      if (lowerBound === undefined) {
+        lowerBound =
+          UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
+            sumProbabilitySoFar,
+            alphaLogMAR,
+            probabilityForAlpha,
+            this.logMARGap,
+            lowerBoundProbabilityMass
+          );
+      }
+
+      if (upperBound === undefined) {
+        upperBound =
+          UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
+            sumProbabilitySoFar,
+            alphaLogMAR,
+            probabilityForAlpha,
+            this.logMARGap,
+            upperBoundProbabilityMass
+          );
+      }
+    }
+
+    if (lowerBound === undefined) {
+      throw new Error(
+        "Somehow we didn't find the confidence interval lower bound after iterating through the entire alpha probability distribution; this is a bug in the code"
+      );
+    }
+    if (upperBound === undefined) {
+      throw new Error(
+        "Somehow we didn't find the confidence interval upper bound after iterating through the entire alpha probability distribution; this is a bug in the code"
+      );
+    }
+
+    return {
+      guessedLogMAR: guessedLogMAR,
+      intervalLowerBound: lowerBound,
+      intervalUpperBound: upperBound,
+    };
   }
 
   /**
@@ -191,5 +291,54 @@ export class UserLogMARGuessingEngine {
       gamma +
       (1 - lambda - gamma) / (1 + Math.exp(-beta * (givenLogMAR - alpha)))
     );
+  }
+
+  /**
+   * When looking for the lower & upper confidence interval edges, we'll eventually come across a bucket that contains the edge we're looking for.
+   *
+   * This function finds the exact LogMAR value at which our edge exists.
+   *
+   * @param sumProbabilitySoFar How much probability we've seen so far from the buckets that have come before this one.
+   *
+   * @param bucketLogMAR The LogMAR value of the bucket (assumed to be in the center of the bucket)
+   *
+   * @param bucketProbability The pointwise probability of the bucket's LogMAR (assumed to be distributed evenly across the bucket)
+   *
+   * @param logMARGap The LogMAR width of the bucket
+   *
+   * @param confidenceIntervalBound The bound that we're looking for
+   *
+   * @returns The LogMAR value at which confidenceIntervalBound is met if it occurs within the bucket, or undefined if the confidence interval bound is not
+   * crossed within the bucket.
+   */
+  static getConfidenceIntervalBoundInBucket(
+    sumProbabilitySoFar: number,
+    bucketLogMAR: number,
+    bucketProbability: number,
+    logMARGap: number,
+    confidenceIntervalBound: number
+  ) {
+    if (confidenceIntervalBound < sumProbabilitySoFar) {
+      throw new Error(
+        `Confidence interval bound ${confidenceIntervalBound} was crossed in a previous bucket; this function should not have been called`
+      );
+    }
+
+    if (sumProbabilitySoFar + bucketProbability < confidenceIntervalBound) {
+      // The confidence interval bound isn't crossed in this bucket
+      return undefined;
+    }
+
+    const missingProbability = confidenceIntervalBound - sumProbabilitySoFar;
+
+    const bucketProbabilityPerLogMAR = bucketProbability / logMARGap;
+
+    const boundLogMARRelativeToBucket =
+      missingProbability / bucketProbabilityPerLogMAR;
+
+    const absoluteBoundLogMAR =
+      bucketLogMAR - logMARGap / 2 + boundLogMARRelativeToBucket;
+
+    return absoluteBoundLogMAR;
   }
 }
