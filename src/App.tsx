@@ -23,7 +23,7 @@ const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
   const [guessingEngine] = useState(() => {
     const alphaPriors = new Map<number, number>();
-    const minLogMAR = -0.3;
+    const minLogMAR = -1.0;
     const maxLogMAR = 1.2;
     const step = 0.01;
 
@@ -43,22 +43,17 @@ const App: React.FC = () => {
     const numDistinctOptotypes = Object.keys(orientationToRotation).length; // Landolt C has 8 orientations
     const confidenceInterval = 0.95; // 95% confidence
 
-    return new UserLogMARGuessingEngine(
-      alphaPriors,
-      numDistinctOptotypes,
-      confidenceInterval
-    );
+    return new UserLogMARGuessingEngine(alphaPriors, numDistinctOptotypes, confidenceInterval);
   });
   const [calibrationData, setCalibrationData] = useState<{
     measuredHeightPx: number;
     measuredHeightCm: number;
   } | null>(null);
-  const [selectedViewingConfiguration, setSelectedViewingConfiguration] =
-    useState<{
-      id: string;
-      name: string;
-      distanceCentimeters: number;
-    } | null>(null);
+  const [selectedViewingConfiguration, setSelectedViewingConfiguration] = useState<{
+    id: string;
+    name: string;
+    distanceCentimeters: number;
+  } | null>(null);
   const [assessmentResults, setAssessmentResults] = useState<{
     logMARScore: number;
     correctLetters: number;
@@ -155,22 +150,12 @@ const App: React.FC = () => {
 
   if (currentScreen === "assessment") {
     return (
-      <div
-        className="app"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          padding: "2rem",
-          alignItems: "center",
-        }}
-      >
-        <LogMARChart
-          calibrationData={calibrationData}
-          viewingConfiguration={selectedViewingConfiguration}
-          onAssessmentComplete={handleAssessmentComplete}
-          guessingEngine={guessingEngine}
-        />
-      </div>
+      <LogMARChart
+        calibrationData={calibrationData}
+        viewingConfiguration={selectedViewingConfiguration}
+        onAssessmentComplete={handleAssessmentComplete}
+        guessingEngine={guessingEngine}
+      />
     );
   }
 
