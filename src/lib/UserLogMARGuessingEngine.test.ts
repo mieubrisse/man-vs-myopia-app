@@ -28,6 +28,14 @@ describe("UserLogMARGuessingEngine", () => {
       // We'll test this through the public methods
     });
 
+    it("should throw on non-(0.0,0.1) confidence interval", () => {});
+
+    it("should throw on non-even gaps in the alpha priors grid", () => {});
+
+    it("should throw on < 2 alpha priors", () => {});
+
+    it("should throw on non-positive-integer number of optotypes", () => {});
+
     it("should create a deep copy of the alpha priors", () => {
       const originalPriors = new Map([
         [0.0, 0.5],
@@ -115,6 +123,43 @@ describe("UserLogMARGuessingEngine", () => {
       const engine = new UserLogMARGuessingEngine(negativePriors);
 
       expect(engine).toBeInstanceOf(UserLogMARGuessingEngine);
+    });
+  });
+
+  describe("getConfidenceIntervalBoundInBucket", () => {
+    it("should throw if the confidence interval bound was crossed in a previous bucket", () => {
+      expect(() =>
+        UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
+          0.5,
+          1.0,
+          0.1,
+          0.1,
+          0.4
+        )
+      ).toThrowError();
+    });
+
+    it("should return undefined if the confidence interval isn't crossed in this bucket", () => {
+      const result =
+        UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
+          0.5,
+          1.0,
+          0.1,
+          0.1,
+          0.4
+        );
+      expect(result).toBeUndefined();
+    });
+
+    it("should correctly calculate the bound within the bucket", () => {
+      const bound = UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
+        0.5,
+        0.1,
+        0.5,
+        0.1,
+        0.75
+      );
+      expect(bound).toBe(0.1);
     });
   });
 
