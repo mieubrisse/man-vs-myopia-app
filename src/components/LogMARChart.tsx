@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import "./LogMARChart.css";
 import { LandoltCOptotype } from "./LandoltCOptotype";
+import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
 
 // Speech Recognition interfaces
 interface SpeechRecognition extends EventTarget {
@@ -58,6 +59,13 @@ interface DebugInfo {
   isFinal: boolean;
 }
 
+interface GuessingEngineDebugInfo {
+  nextTrialLogMAR: number;
+  guessedLogMAR: number;
+  intervalLowerBound: number;
+  intervalUpperBound: number;
+}
+
 interface LetterState {
   orientation: string;
   status?: "correct" | "incorrect" | "current" | "pending";
@@ -78,6 +86,7 @@ interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
   calibrationData?: CalibrationData | null;
   viewingConfiguration?: ViewingConfiguration | null;
+  guessingEngine?: UserLogMARGuessingEngine;
   onAssessmentComplete?: (results: {
     logMARScore: number;
     correctLetters: number;
@@ -118,22 +127,23 @@ WHAT CHATGPT HAS TO SAY ABOUT LOGMAR CONFIDENCE INTERVALS:
 
 Because the natural repeatability floor of a paper ETDRS is already ± 0.15 logMAR, any algorithm that
 tightens the credible interval width to ≤ 0.10 logMAR is unequivocally more precise than standard care.
-Going down to ± 0.05 logMAR buys you a factor-of-three margin over the paper chart’s noise—very useful for:
+Going down to ± 0.05 logMAR buys you a factor-of-three margin over the paper chart's noise—very useful for:
 •	Detecting modest disease progression early (e.g., −0.08 logMAR change).
 •	Reducing sample size in trials that use acuity as an endpoint.
 •	Giving home users feedback sensitive enough to see day-to-day fluctuations.
 
 Trade-off rule of thumb
-  •	Halving the confidence interval width roughly doubles the number of informative trials once you’re below ± 0.10 logMAR.
+  •	Halving the confidence interval width roughly doubles the number of informative trials once you're below ± 0.10 logMAR.
   •	Below ± 0.03 logMAR the benefit/effort curve flattens; observer variability (blinks, attention) dominates.
 */
-const LOGMAR_CONFIDENCE_INTERVAL: number = 0.05;
+// const LOGMAR_CONFIDENCE_INTERVAL: number = 0.05;
 
 const LogMARChart: React.FC<LogMARChartProps> = ({
   onLetterValidated,
   calibrationData,
   viewingConfiguration,
   onAssessmentComplete,
+  guessingEngine,
 }) => {
   const LANDOLT_C_ORIENTATIONS = [
     "NORTH",
@@ -145,7 +155,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     "WEST",
     "NORTHWEST",
   ];
-  const NUM_LETTERS_PER_LINE = 5;
+  const NUM_LETTERS_PER_LINE = 3;
   const STARTING_LOGMAR = 0.4;
 
   // Only keep state for the current row's letters and their statuses
@@ -154,6 +164,8 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const [currentLogMAR, setCurrentLogMAR] = useState(STARTING_LOGMAR);
   const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
+  const [guessingEngineDebugInfo, setGuessingEngineDebugInfo] =
+    useState<GuessingEngineDebugInfo | null>(null);
 
   // Track scores for each LogMAR value: Map<LogMAR, {attempted: number, correct: number}>
   const [logMARScoreMap, setLogMARScoreMap] = useState<
@@ -243,9 +255,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         );
       }
 
-      const randomIndex = Math.floor(
-        Math.random() * availableOrientations.length
-      );
+      const randomIndex = Math.floor(Math.random() * availableOrientations.length);
       const selectedOrientation = availableOrientations[randomIndex];
 
       orientations.push({
@@ -349,16 +359,12 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         const result = event.results[event.results.length - 1];
         const fullTranscript = result[0].transcript;
         const confidence = result[0].confidence;
-        const recognizedOrientations =
-          recognizeOrientationRef.current(fullTranscript);
+        const recognizedOrientations = recognizeOrientationRef.current(fullTranscript);
         setDebugInfo((prev) => {
           const newInfo = {
             transcript: fullTranscript,
             confidence,
-            utterance:
-              recognizedOrientations.length > 0
-                ? recognizedOrientations.join(", ")
-                : null,
+            utterance: recognizedOrientations.length > 0 ? recognizedOrientations.join(", ") : null,
             timestamp: Date.now(),
             isFinal: result.isFinal,
           };
@@ -377,9 +383,30 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             }
             const idx = currentLetterIndexRef.current;
             const rowLetters = currentRowLettersRef.current;
+            const currentLetter = rowLetters[idx];
+            if (!currentLetter) return;
+
+            const isCorrect = orientation === currentLetter.orientation;
+
+            // Update the guessing engine in the background
+            if (guessingEngine) {
+              // We need to truncate to thousandths of LogMAR precision because the engine doesn't
+              // accept anything more
+              const roundedLogMAR = Math.floor(currentLogMARRef.current * 1000) / 1000;
+              guessingEngine.updateGivenTrialResult(roundedLogMAR, isCorrect);
+              const { guessedLogMAR, intervalLowerBound, intervalUpperBound } =
+                guessingEngine.guessUserLogMAR();
+              const nextTrialLogMAR = guessingEngine.proposeNextTrialLogMAR();
+              setGuessingEngineDebugInfo({
+                guessedLogMAR,
+                intervalLowerBound,
+                intervalUpperBound,
+                nextTrialLogMAR,
+              });
+            }
+
             setCurrentRowLetters((prev) => {
               if (idx >= prev.length) return prev;
-              const isCorrect = orientation === prev[idx].orientation;
               const updated = [...prev];
               updated[idx].status = isCorrect ? "correct" : "incorrect";
               if (idx + 1 < updated.length) {
@@ -389,7 +416,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             });
 
             // Update the score map
-            const isCorrect = orientation === rowLetters[idx]?.orientation;
             setLogMARScoreMap((prev) => {
               const newMap = new Map(prev);
               const currentScores = newMap.get(currentLogMARRef.current) || {
@@ -427,9 +453,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   useEffect(() => {
     if (
       currentRowLetters.length === NUM_LETTERS_PER_LINE &&
-      currentRowLetters.every(
-        (l) => l.status === "correct" || l.status === "incorrect"
-      ) &&
+      currentRowLetters.every((l) => l.status === "correct" || l.status === "incorrect") &&
       !isAssessmentFinished
     ) {
       if (currentLogMAR > 0.0) {
@@ -459,14 +483,8 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
     if (calibrationData) {
       console.log("Font Size Calibration:");
-      console.log(
-        "  - Measured height (px):",
-        calibrationData.measuredHeightPx
-      );
-      console.log(
-        "  - Measured height (cm):",
-        calibrationData.measuredHeightCm
-      );
+      console.log("  - Measured height (px):", calibrationData.measuredHeightPx);
+      console.log("  - Measured height (cm):", calibrationData.measuredHeightCm);
     } else {
       console.log("Font Size Calibration: Not available");
     }
@@ -475,11 +493,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       console.log("Viewing Configuration:");
       console.log("  - UUID:", viewingConfiguration.id);
       console.log("  - Name:", viewingConfiguration.name);
-      console.log(
-        "  - Distance:",
-        viewingConfiguration.distanceCentimeters,
-        "cm from screen"
-      );
+      console.log("  - Distance:", viewingConfiguration.distanceCentimeters, "cm from screen");
     } else {
       console.log("Viewing Configuration: Not available");
     }
@@ -494,8 +508,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     }
 
     // Convert calibration data: measuredHeightPx = measuredHeightCm
-    const pixelsPerCm =
-      calibrationData.measuredHeightPx / calibrationData.measuredHeightCm;
+    const pixelsPerCm = calibrationData.measuredHeightPx / calibrationData.measuredHeightCm;
 
     // Calculate size for the current LogMAR level
     const letterSizePx = calculateLetterPixelSizeForLogMAR(
@@ -539,7 +552,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           borderBottom: "2px solid #ccc",
           fontFamily: "monospace",
           fontSize: "1rem",
-          maxHeight: "200px",
+          maxHeight: "300px",
           overflowY: "auto",
         }}
       >
@@ -561,18 +574,51 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               style={{
                 marginBottom: "0.5rem",
                 padding: "0.25rem",
-                backgroundColor:
-                  index === debugInfo.length - 1 ? "#e0e0e0" : "transparent",
+                backgroundColor: index === debugInfo.length - 1 ? "#e0e0e0" : "transparent",
               }}
             >
-              {`[${index + 1}] "${info.transcript}" (${(
-                info.confidence * 100
-              ).toFixed(1)}% confidence)`}
+              {`[${index + 1}] "${info.transcript}" (${(info.confidence * 100).toFixed(
+                1
+              )}% confidence)`}
               {info.utterance && ` → Detected utterance: "${info.utterance}"`}
               {!info.isFinal && " (interim)"}
             </div>
           ))
         )}
+
+        {/* New pane for guessing engine */}
+        <div
+          style={{
+            marginTop: "1rem",
+            paddingTop: "1rem",
+            borderTop: "1px solid #ccc",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: "bold",
+              fontSize: "1.1rem",
+              marginBottom: "0.5rem",
+            }}
+          >
+            Guessing Engine State:
+          </div>
+          {guessingEngineDebugInfo ? (
+            <div>
+              <div>{`Next trial proposal: ${guessingEngineDebugInfo.nextTrialLogMAR.toFixed(
+                3
+              )} LogMAR`}</div>
+              <div>{`Current acuity guess: ${guessingEngineDebugInfo.guessedLogMAR.toFixed(
+                3
+              )} LogMAR`}</div>
+              <div>{`Confidence Interval: [${guessingEngineDebugInfo.intervalLowerBound.toFixed(
+                3
+              )}, ${guessingEngineDebugInfo.intervalUpperBound.toFixed(3)}]`}</div>
+            </div>
+          ) : (
+            <div>Awaiting first result...</div>
+          )}
+        </div>
       </div>
       {/* Centered chart row below debug box */}
       <div
@@ -599,9 +645,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 <div
                   key={currentLogMAR}
                   className="chart-row"
-                  style={
-                    { "--row-index": currentLogMAR } as React.CSSProperties
-                  }
+                  style={{ "--row-index": currentLogMAR } as React.CSSProperties}
                 >
                   {currentRowLetters.map((item, colIndex) => (
                     <React.Fragment key={colIndex}>

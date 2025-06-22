@@ -7,6 +7,8 @@ import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScree
 import ViewingConfigurationSelectionScreen from "./components/ViewingConfigurationSelectionScreen";
 import AssessmentResultsScreen from "./components/AssessmentResultsScreen";
 import LandoltCTestScreen from "./components/LandoltCTestScreen";
+import { UserLogMARGuessingEngine } from "./lib/UserLogMARGuessingEngine";
+import { orientationToRotation } from "./components/LandoltCOptotype";
 
 type AppScreen =
   | "home"
@@ -19,6 +21,34 @@ type AppScreen =
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
+  const [guessingEngine] = useState(() => {
+    const alphaPriors = new Map<number, number>();
+    const minLogMAR = -0.3;
+    const maxLogMAR = 1.2;
+    const step = 0.01;
+
+    // A uniform prior
+    let totalEntries = 0;
+    for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
+      totalEntries++;
+    }
+    const probability = 1 / totalEntries;
+
+    for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
+      // Round to avoid floating point issues
+      const roundedLogMAR = Math.round(logMAR * 1000) / 1000;
+      alphaPriors.set(roundedLogMAR, probability);
+    }
+
+    const numDistinctOptotypes = Object.keys(orientationToRotation).length; // Landolt C has 8 orientations
+    const confidenceInterval = 0.95; // 95% confidence
+
+    return new UserLogMARGuessingEngine(
+      alphaPriors,
+      numDistinctOptotypes,
+      confidenceInterval
+    );
+  });
   const [calibrationData, setCalibrationData] = useState<{
     measuredHeightPx: number;
     measuredHeightCm: number;
@@ -138,6 +168,7 @@ const App: React.FC = () => {
           calibrationData={calibrationData}
           viewingConfiguration={selectedViewingConfiguration}
           onAssessmentComplete={handleAssessmentComplete}
+          guessingEngine={guessingEngine}
         />
       </div>
     );
