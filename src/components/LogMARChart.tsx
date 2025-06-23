@@ -5,62 +5,6 @@ import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
 import AlphaProbabilityGraph from "./AlphaProbabilityGraph";
 import ResponseIndicator from "./ResponseIndicator";
 import ConfidenceProgress from "./ConfidenceProgress";
-// Types for speech recognition are provided by @types/dom-speech-recognition (may be global)
-
-// At the top of your file (if needed, but types will be global)
-// import type { SpeechRecognition, SpeechGrammarList } from 'dom-speech-recognition';
-
-// Speech Recognition interfaces
-// interface SpeechRecognition extends EventTarget {
-//   continuous: boolean;
-//   interimResults: boolean;
-//   lang: string;
-//   onstart: (event: Event) => void;
-//   onend: (event: Event) => void;
-//   onerror: (event: SpeechRecognitionErrorEvent) => void;
-//   onresult: (event: SpeechRecognitionEvent) => void;
-//   start(): void;
-//   stop(): void;
-// }
-
-// interface SpeechRecognitionEvent extends Event {
-//   results: SpeechRecognitionResultList;
-//   resultIndex: number;
-// }
-
-// interface SpeechRecognitionResultList {
-//   length: number;
-//   item(index: number): SpeechRecognitionResult;
-//   [index: number]: SpeechRecognitionResult;
-// }
-
-// interface SpeechRecognitionResult {
-//   isFinal: boolean;
-//   length: number;
-//   item(index: number): SpeechRecognitionAlternative;
-//   [index: number]: SpeechRecognitionAlternative;
-// }
-
-// interface SpeechRecognitionAlternative {
-//   transcript: string;
-//   confidence: number;
-// }
-
-// interface SpeechRecognitionErrorEvent extends Event {
-//   error: string;
-//   message: string;
-// }
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    SpeechGrammarList?: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    webkitSpeechGrammarList?: any;
-  }
-}
 
 interface TopPanelDebugInfo {
   nextTrialLogMAR: number;
@@ -365,7 +309,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       return;
     }
     try {
-      const recognition = new window.webkitSpeechRecognition();
       // Add grammar for Landolt C directions
       const directions = [
         "NORTH",
@@ -379,18 +322,16 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       ];
       const grammar =
         "#JSGF V1.0; grammar directions; public <direction> = " + directions.join(" | ") + " ;";
-      const speechRecognitionList = new window.webkitSpeechGrammarList();
-      speechRecognitionList.addFromString(grammar, 1);
-      recognition.grammars = speechRecognitionList;
+      console.log(`Adding grammar: ${grammar}`);
       const SpeechGrammarListCtor = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-      if (SpeechGrammarListCtor) {
-        console.log(`Adding grammar: ${grammar}`);
-        const speechRecognitionList = new SpeechGrammarListCtor();
-        speechRecognitionList.addFromString(grammar, 1);
-        (
-          recognition as unknown as SpeechRecognition & { grammars?: typeof speechRecognitionList }
-        ).grammars = speechRecognitionList;
+      if (!SpeechGrammarListCtor) {
+        throw new Error("SpeechGrammarList is not supported in this browser.");
       }
+      const speechRecognitionList: SpeechGrammarList = new SpeechGrammarListCtor();
+      speechRecognitionList.addFromString(grammar, 1);
+
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.grammars = speechRecognitionList;
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = "en-US";
