@@ -3,6 +3,12 @@
 // - Output, for proposing logMAR sizes
 const MAXIMUM_LOGMAR_PRECISION: number = 1000;
 
+function normalizeVector(vector: number[]): number[] {
+  const sum = vector.reduce((prevVal, curr) => prevVal + curr, 0);
+
+  return vector.map((val) => val / sum);
+}
+
 /*
 export type PsychometricCoreFunction = (
   alpha: number,
@@ -92,6 +98,34 @@ export class UserLogMARGuessingEngine {
       throw new Error("Must have at least two alpha priors");
     }
 
+    const alphaLogMARs: number[] = [...alphaPriors.keys()].sort((a, b) => a - b);
+    const alphaLogMARThousandths = alphaLogMARs.map((alphaLogMAR) => {
+      const logMARThousandths = Math.floor(alphaLogMAR * MAXIMUM_LOGMAR_PRECISION);
+      if (logMARThousandths !== alphaLogMAR * MAXIMUM_LOGMAR_PRECISION) {
+        throw new Error(
+          `The maximum LogMAR precision supported by this engine is 1/${MAXIMUM_LOGMAR_PRECISION} LogMAR, ` +
+            `but provided LogMAR value ${alphaLogMAR} has granularity finer than that`
+        );
+      }
+      return logMARThousandths;
+    });
+
+    const alphaProbabilities: number[] = alphaLogMARs.map((alphaLogMAR) => {
+      const alphaProbability = alphaPriors.get(alphaLogMAR);
+      if (alphaProbability === undefined) {
+        throw new Error(
+          `No probability was defined for alpha LogMAR ${alphaLogMAR}; this should never happen`
+        );
+      }
+      return alphaProbability;
+    });
+
+    const sumProbability = alphaProbabilities.reduce(
+      (prevVal, probability) => prevVal + probability,
+      0
+    );
+
+    /*
     const alphaPriorsLogMARThousandths = new Map<number, number>();
     let sumProbability = 0;
     for (const [alphaLogMAR, probability] of alphaPriors.entries()) {
@@ -106,30 +140,33 @@ export class UserLogMARGuessingEngine {
       alphaPriorsLogMARThousandths.set(logMARThousandths, probability);
       sumProbability += probability;
     }
+      */
 
     if (Math.abs(sumProbability - 1.0) > 1e-7) {
       throw new Error(`Total alpha probability must == 1.0 but is ${sumProbability}`);
     }
 
+    /*
     // Verify that the alpha LogMAR values don't exceed our resolution and are equally-spaced, just to not be insane
     const sortedAlphaLogMARThousandths = [...alphaPriorsLogMARThousandths.keys()].sort(
       (a, b) => a - b
     );
+    */
 
-    const expectedLogMARGap = sortedAlphaLogMARThousandths[1] - sortedAlphaLogMARThousandths[0];
-    for (const [idx, alphaLogMARThousandths] of sortedAlphaLogMARThousandths.entries()) {
+    const expectedLogMARGap = alphaLogMARThousandths[1] - alphaLogMARThousandths[0];
+    for (const [idx, logMARThousandths] of alphaLogMARThousandths.entries()) {
       if (idx === 0) {
         continue;
       }
-      const prevLogMARThousandths = sortedAlphaLogMARThousandths[idx - 1];
-      const actualLogMARGap = alphaLogMARThousandths - prevLogMARThousandths;
+      const prevLogMARThousandths = alphaLogMARThousandths[idx - 1];
+      const actualLogMARGap = logMARThousandths - prevLogMARThousandths;
       if (actualLogMARGap != expectedLogMARGap) {
         throw new Error(
           `The gap between alpha priors is inconsistent: expected ${
             expectedLogMARGap / MAXIMUM_LOGMAR_PRECISION
           } gap throughout, but ` +
             `found ${actualLogMARGap / MAXIMUM_LOGMAR_PRECISION} gap between ${
-              alphaLogMARThousandths / MAXIMUM_LOGMAR_PRECISION
+              logMARThousandths / MAXIMUM_LOGMAR_PRECISION
             } and ${prevLogMARThousandths / MAXIMUM_LOGMAR_PRECISION}`
         );
       }
@@ -148,7 +185,8 @@ export class UserLogMARGuessingEngine {
       );
     }
 
-    this.alphaPriors = new Map(alphaPriorsLogMARThousandths);
+    this.alphaLogMARThousandths = alphaLogMARThousandths;
+    this.alphaProbabilities = alphaProbabilities;
     this.logMARGap = expectedLogMARGap;
     this.numDistinctOptotypes = numDistinctOptotypes;
     this.confidenceInterval = confidenceInterval;
@@ -166,8 +204,9 @@ export class UserLogMARGuessingEngine {
     // but we can do better with an entropy minimization scheme. I don't do this now because
     // it's not that important - just reduces the number of letters we have to show the user.
     let expectedValueThousandths = 0;
-    for (const [alphaLogMAR, probability] of this.alphaPriors) {
-      expectedValueThousandths += alphaLogMAR * probability;
+    for (const [idx, logMARThousandths] of this.alphaLogMARThousandths.entries()) {
+      const probability = this.alphaProbabilities[idx];
+      expectedValueThousandths += logMARThousandths * probability;
     }
 
     return Math.floor(expectedValueThousandths) / MAXIMUM_LOGMAR_PRECISION;
@@ -186,11 +225,7 @@ export class UserLogMARGuessingEngine {
       );
     }
 
-    const alphaRelativeBeliefs: Map<number, number> = new Map();
-
-    // We'll use this to re-normalize relative belief in alpha back to a probability distribution
-    // (The Bayesian posterior, which will become the prior for the next iteration)
-    let sumRelativeBelief: number = 0;
+    const alphaRelativeBeliefs = new Array<number>();
 
     // To update our priors, we:
     // 1. Iterate over each alpha in the priors grid, and calculate Ψ(alpha, logMARTested) to see what the psychometric
@@ -198,7 +233,9 @@ export class UserLogMARGuessingEngine {
     // 2. Compare what that alpha says about the likelihood of getting it right vs whether the user actually got it right
     // 3. Update the likelihood of that alpha based on how close/far the Ψ(alpha, logMARTested) was to the user's actual result
     // The resulting grid of (alpha, probability) form our priors.
-    for (const [alphaLogMARThousandths, probabilityOfAlpha] of this.alphaPriors) {
+    for (const [idx, alphaLogMARThousandths] of this.alphaLogMARThousandths.entries()) {
+      const probabilityOfAlpha = this.alphaProbabilities[idx];
+
       // This is the likelihood of the user getting it correct at the given alpha & tested LogMAR size
       const likelihoodOfCorrectGivenAlpha = UserLogMARGuessingEngine.calculateLogisticPsychometric(
         testedLogMARThousandths,
@@ -222,19 +259,14 @@ export class UserLogMARGuessingEngine {
       // - Alphas that confidently state the user will get it right and are wrong are adjusted down a lot
       const relativeBeliefInAlpha = probabilityOfAlpha * likelihoodOfGivenAlpha;
 
-      alphaRelativeBeliefs.set(alphaLogMARThousandths, relativeBeliefInAlpha);
-
-      sumRelativeBelief += relativeBeliefInAlpha;
+      alphaRelativeBeliefs.push(relativeBeliefInAlpha);
     }
 
-    // Now we transform relative belief back into probabilities
-    const alphaPosteriors: Map<number, number> = new Map();
-    for (const [alphaLogMAR, relativeBelief] of alphaRelativeBeliefs) {
-      alphaPosteriors.set(alphaLogMAR, relativeBelief / sumRelativeBelief);
-    }
+    // Normalize relative belief back into probabilities
+    const alphaPosteriors = normalizeVector(alphaRelativeBeliefs);
 
     // Now, use the posterior as the prior for our next trial
-    this.alphaPriors = alphaPosteriors;
+    this.alphaProbabilities = alphaPosteriors;
   }
 
   /**
@@ -252,7 +284,8 @@ export class UserLogMARGuessingEngine {
   } {
     // Get the guessed LogMAR (which is the mean of the alpha probability distribution)
     let guessedLogMARThousandths: number = 0;
-    for (const [alphaLogMARThousandths, alphaProbability] of this.alphaPriors) {
+    for (const [idx, alphaLogMARThousandths] of this.alphaLogMARThousandths.entries()) {
+      const alphaProbability = this.alphaProbabilities[idx];
       guessedLogMARThousandths += alphaLogMARThousandths * alphaProbability;
     }
     const guessedLogMAR = Math.round(guessedLogMARThousandths) / MAXIMUM_LOGMAR_PRECISION;
@@ -265,22 +298,16 @@ export class UserLogMARGuessingEngine {
     // We do this by building a stepwise probability density function, treating each alpha LogMAR's pointwise probability
     // as equally distributed across a bin of width logMARGap, and then summing the probability density function from
     // left to right
-    const sortedAlphaLogMARs = [...this.alphaPriors.keys()].sort((a, b) => a - b);
     let sumProbabilitySoFar = 0;
     let lowerBoundThousandths;
     let upperBoundThousandths;
-    for (const alphaLogMAR of sortedAlphaLogMARs) {
-      const probabilityForAlpha = this.alphaPriors.get(alphaLogMAR);
-      if (probabilityForAlpha === undefined) {
-        throw new Error(
-          `Expected to find logMAR ${alphaLogMAR} in the alpha probabilities map, bromet didn't`
-        );
-      }
+    for (const [idx, alphaLogMARThousandths] of this.alphaLogMARThousandths.entries()) {
+      const probabilityForAlpha = this.alphaProbabilities[idx];
 
       if (lowerBoundThousandths === undefined) {
         lowerBoundThousandths = UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
           sumProbabilitySoFar,
-          alphaLogMAR,
+          alphaLogMARThousandths,
           probabilityForAlpha,
           this.logMARGap,
           lowerBoundProbabilityMass
@@ -290,7 +317,7 @@ export class UserLogMARGuessingEngine {
       if (upperBoundThousandths === undefined) {
         upperBoundThousandths = UserLogMARGuessingEngine.getConfidenceIntervalBoundInBucket(
           sumProbabilitySoFar,
-          alphaLogMAR,
+          alphaLogMARThousandths,
           probabilityForAlpha,
           this.logMARGap,
           upperBoundProbabilityMass
@@ -320,8 +347,9 @@ export class UserLogMARGuessingEngine {
 
   getAlphaProbabilities(): Map<number, number> {
     const returnVal = new Map<number, number>();
-    for (const [alphaLogMARThousandths, probabilities] of this.alphaPriors.entries()) {
-      returnVal.set(alphaLogMARThousandths / MAXIMUM_LOGMAR_PRECISION, probabilities);
+    for (const [idx, alphaLogMARThousandths] of this.alphaLogMARThousandths.entries()) {
+      const alphaProbability = this.alphaProbabilities[idx];
+      returnVal.set(alphaLogMARThousandths / MAXIMUM_LOGMAR_PRECISION, alphaProbability);
     }
     return new Map(returnVal);
   }
