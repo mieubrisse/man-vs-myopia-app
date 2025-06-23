@@ -4,6 +4,22 @@
 // - Output, for proposing logMAR sizes
 const MAXIMUM_LOGMAR_PRECISION: number = 1000;
 
+// This is the slope at alpha (the point where probability of the user's correct guess crosses 1.0)
+// ChatGPT says "High-contrast Sloan letters, fovea, adult observers → β ≈ 10 – 15 for the logistic form we've been using"
+// TODO Derive this value independently from user observation, preferably taking into account light/contrast levels as well
+/*
+  This is important because according to ChatGPT:
+
+  "Going from photopic high-contrast to mesopic or low-contrast letters reduces β by 25-50 %. Mesopic/low-contrast acuity papers consistently find gentler slopes"
+  https://pubmed.ncbi.nlm.nih.gov/28211180/
+  https://journals.lww.com/optvissci/abstract/2015/05000/determinants_and_standardization_of_mesopic_visual.8.aspx
+
+  "Tumbling-E and Landolt-C are usually 10-20 % flatter than 10-AFC Sloan because of higher guess rate and stimulus confusions."
+
+  https://www.researchgate.net/publication/12066925_The_Slope_of_the_Psychometric_Function_for_Bailey-Lovie_Letter_Charts_Defocus_Effects_and_Implications_for_Modeling_Letter-By-Letter_Scores
+  */
+const LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.015; // 15.0 converted for LogMAR thousandths
+
 function normalizeVector(vector: number[]): number[] {
   const sum = vector.reduce((prevVal, curr) => prevVal + curr, 0);
 
@@ -76,6 +92,18 @@ export function calculateAlphaLikelihoods(
   lambda: number
 ): number[] {
   const alphaLikelihoods = new Array<number>();
+
+  /*
+  // right before you call Math.exp in pHit():
+  const firstAlphaTh = allAlphaLogMARThousandths[0];
+  console.log(
+    `DEBUG: tauTh = ${testedLogMARThousandths}, alphaTh[0] = ${firstAlphaTh}`,
+    `Δ = ${testedLogMARThousandths - firstAlphaTh}`,
+    `βΔ = ${
+      LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS * (testedLogMARThousandths - firstAlphaTh)
+    }`
+  );
+  */
 
   // To update our priors, we:
   // 1. Iterate over each alpha in the priors grid, and calculate Ψ(alpha, logMARTested) to see what the psychometric
@@ -165,22 +193,6 @@ export function proposeNextTrialLogMARThousandths(
  */
 // TODO Incorporate the Stanford Visual Acuity Test?? https://stanford.edu/~cpiech/bio/papers/StAT.pdf?utm_source=chatgpt.com
 export class UserLogMARGuessingEngine {
-  // This is the slope at alpha (the point where probability of the user's correct guess crosses 1.0)
-  // ChatGPT says "High-contrast Sloan letters, fovea, adult observers → β ≈ 10 – 15 for the logistic form we've been using"
-  // TODO Derive this value independently from user observation, preferably taking into account light/contrast levels as well
-  /*
-   This is important because according to ChatGPT:
-
-   "Going from photopic high-contrast to mesopic or low-contrast letters reduces β by 25-50 %. Mesopic/low-contrast acuity papers consistently find gentler slopes"
-   https://pubmed.ncbi.nlm.nih.gov/28211180/
-   https://journals.lww.com/optvissci/abstract/2015/05000/determinants_and_standardization_of_mesopic_visual.8.aspx
-
-   "Tumbling-E and Landolt-C are usually 10-20 % flatter than 10-AFC Sloan because of higher guess rate and stimulus confusions."
-
-   https://www.researchgate.net/publication/12066925_The_Slope_of_the_Psychometric_Function_for_Bailey-Lovie_Letter_Charts_Defocus_Effects_and_Implications_for_Modeling_Letter-By-Letter_Scores
-   */
-  private static LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.0125; // 12.5 converted for LogMAR thousandths
-
   // TODO maybe guess this dynamically???
   private static LOGISTIC_PSYCHOMETRIC_LAMBDA: number = 0.01; // Chose this number completely arbitrarily
 
@@ -328,7 +340,7 @@ export class UserLogMARGuessingEngine {
     const nextLogMARThousandths = proposeNextTrialLogMARThousandths(
       this.alphaLogMARThousandths,
       this.alphaProbabilities,
-      UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
+      LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
       1 / this.numDistinctOptotypes,
       UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA
     );
@@ -350,11 +362,11 @@ export class UserLogMARGuessingEngine {
     }
 
     const alphaLikelihoods = calculateAlphaLikelihoods(
-      logMARTested,
+      testedLogMARThousandths,
       gotCorrectResult,
       this.alphaLogMARThousandths,
       this.alphaProbabilities,
-      UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
+      LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
       1 / this.numDistinctOptotypes,
       UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA
     );
