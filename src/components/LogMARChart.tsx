@@ -55,6 +55,7 @@ declare global {
 }
 
 interface DebugInfo {
+  lineNumber: number;
   transcript: string;
   confidence: number;
   utterance: string | null;
@@ -184,6 +185,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const currentLetterIndexRef = useRef<number>(0);
   const currentLogMARRef = useRef<number>(STARTING_LOGMAR);
   const isAssessmentFinishedRef = useRef<boolean>(false);
+  const speechEventCounterRef = useRef<number>(1);
 
   // Military alphabet mappings only
   // const MILITARY_ALPHABET_MAPPINGS: { [key: string]: string } = {
@@ -372,13 +374,15 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         const recognizedOrientations = recognizeOrientationRef.current(fullTranscript);
         setDebugInfo((prev) => {
           const newInfo = {
+            lineNumber: speechEventCounterRef.current,
             transcript: fullTranscript,
             confidence,
             utterance: recognizedOrientations.length > 0 ? recognizedOrientations.join(", ") : null,
             timestamp: Date.now(),
             isFinal: result.isFinal,
           };
-          return [...prev, newInfo].slice(-5);
+          speechEventCounterRef.current += 1;
+          return [...prev, newInfo].slice(-4);
         });
         if (result.isFinal && recognizedOrientations.length > 0) {
           let letterIndex = 0;
@@ -586,16 +590,19 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             {debugInfo.length === 0 ? (
               <div style={{ color: "#666" }}>Waiting for speech input...</div>
             ) : (
-              debugInfo.map((info, index) => (
+              debugInfo.map((info) => (
                 <div
                   key={info.timestamp}
                   style={{
                     marginBottom: "0.5rem",
                     padding: "0.25rem",
-                    backgroundColor: index === debugInfo.length - 1 ? "#e0e0e0" : "transparent",
+                    backgroundColor:
+                      info.lineNumber === speechEventCounterRef.current - 1
+                        ? "#e0e0e0"
+                        : "transparent",
                   }}
                 >
-                  {`[${index + 1}] "${info.transcript}" (${(info.confidence * 100).toFixed(
+                  {`[${info.lineNumber}] "${info.transcript}" (${(info.confidence * 100).toFixed(
                     1
                   )}% confidence)`}
                   {info.utterance && ` → Detected utterance: "${info.utterance}"`}
@@ -659,22 +666,12 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           position: "relative",
           display: "flex",
           flexDirection: "row",
-          alignItems: "center",
           justifyContent: "center",
           width: "100%",
           height: "55vh",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            height: "100%",
-            padding: "1rem",
-            boxSizing: "border-box",
-          }}
-        >
+        <div style={{ padding: "1rem" }}>
           <ResponseIndicator responses={currentLetterIndex} total={NUM_LETTERS_PER_LINE} />
         </div>
         <div
@@ -682,6 +679,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
+            justifyContent: "center",
             flex: 1,
           }}
         >
@@ -738,22 +736,14 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             <div>Loading chart...</div>
           )}
         </div>
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-            height: "100%",
-            padding: "1rem",
-            boxSizing: "border-box",
-          }}
-        >
+        <div style={{ padding: "1rem" }}>
           <ConfidenceProgress
             progress={
               topPanelDebugInfo && initialConfidenceWidth
                 ? 1 -
-                  (topPanelDebugInfo.confidenceIntervalWidth - TARGET_CONFIDENCE_INTERVAL_WIDTH) /
-                    (initialConfidenceWidth - TARGET_CONFIDENCE_INTERVAL_WIDTH)
+                  (Math.log(topPanelDebugInfo.confidenceIntervalWidth) -
+                    Math.log(TARGET_CONFIDENCE_INTERVAL_WIDTH)) /
+                    (Math.log(initialConfidenceWidth) - Math.log(TARGET_CONFIDENCE_INTERVAL_WIDTH))
                 : 0
             }
           />
