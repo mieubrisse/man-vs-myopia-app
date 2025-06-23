@@ -87,6 +87,14 @@ interface ViewingConfiguration {
   distanceCentimeters: number;
 }
 
+interface FinalSpeechDebugRow {
+  logMAR: number;
+  transcript: string;
+  correctness: "CORRECT" | "INCORRECT";
+  acuityGuess: number;
+  nextProposal: number;
+}
+
 interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
   calibrationData?: CalibrationData | null;
@@ -435,6 +443,19 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               });
               setAlphaProbabilities(currentProbs);
 
+              setSpeechDebugRows((prev) =>
+                [
+                  {
+                    logMAR: currentLogMARRef.current,
+                    transcript: orientation,
+                    correctness: (isCorrect ? "CORRECT" : "INCORRECT") as "CORRECT" | "INCORRECT",
+                    acuityGuess: guessedLogMAR,
+                    nextProposal: nextTrialLogMAR,
+                  },
+                  ...prev,
+                ].slice(0, 8)
+              ); // Show up to 8 most recent
+
               setCurrentRowLetters((prev) => {
                 if (idx >= prev.length) return prev;
                 const updated = [...prev];
@@ -562,6 +583,8 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   // Add this ref for currentRowLetters
   const currentRowLettersRef = useRef<LetterState[]>([]);
 
+  const [speechDebugRows, setSpeechDebugRows] = useState<FinalSpeechDebugRow[]>([]);
+
   return (
     <div
       style={{
@@ -575,6 +598,60 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         boxSizing: "border-box",
       }}
     >
+      {/* Top debug panel: only the speech recognition results table */}
+      <div
+        style={{
+          width: "100%",
+          zIndex: 1000,
+          padding: "1rem",
+          backgroundColor: "#f0f0f0",
+          borderBottom: "2px solid #ccc",
+          fontFamily: "monospace",
+          fontSize: "1rem",
+          height: "20vh",
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>
+          Speech Recognition Debug (final results only):
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>LogMAR</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>Transcript</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>Result</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>Acuity Guess</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>Next Proposal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {speechDebugRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ color: "#666" }}>
+                    No results yet...
+                  </td>
+                </tr>
+              ) : (
+                speechDebugRows.map((row, idx) => (
+                  <tr key={idx}>
+                    <td>{row.logMAR.toFixed(3)}</td>
+                    <td>{row.transcript}</td>
+                    <td style={{ color: row.correctness === "CORRECT" ? "#16a34a" : "#dc2626" }}>
+                      {row.correctness}
+                    </td>
+                    <td>{row.acuityGuess.toFixed(3)}</td>
+                    <td>{row.nextProposal.toFixed(3)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {/* Speech Recognition Debug Info (fixed at top) */}
       <div
         style={{
