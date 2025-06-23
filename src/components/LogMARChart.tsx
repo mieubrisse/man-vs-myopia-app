@@ -5,62 +5,61 @@ import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
 import AlphaProbabilityGraph from "./AlphaProbabilityGraph";
 import ResponseIndicator from "./ResponseIndicator";
 import ConfidenceProgress from "./ConfidenceProgress";
+// Types for speech recognition are provided by @types/dom-speech-recognition (may be global)
+
+// At the top of your file (if needed, but types will be global)
+// import type { SpeechRecognition, SpeechGrammarList } from 'dom-speech-recognition';
 
 // Speech Recognition interfaces
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (event: Event) => void;
-  onend: (event: Event) => void;
-  onerror: (event: SpeechRecognitionErrorEvent) => void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  start(): void;
-  stop(): void;
-}
+// interface SpeechRecognition extends EventTarget {
+//   continuous: boolean;
+//   interimResults: boolean;
+//   lang: string;
+//   onstart: (event: Event) => void;
+//   onend: (event: Event) => void;
+//   onerror: (event: SpeechRecognitionErrorEvent) => void;
+//   onresult: (event: SpeechRecognitionEvent) => void;
+//   start(): void;
+//   stop(): void;
+// }
 
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
+// interface SpeechRecognitionEvent extends Event {
+//   results: SpeechRecognitionResultList;
+//   resultIndex: number;
+// }
 
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
+// interface SpeechRecognitionResultList {
+//   length: number;
+//   item(index: number): SpeechRecognitionResult;
+//   [index: number]: SpeechRecognitionResult;
+// }
 
-interface SpeechRecognitionResult {
-  isFinal: boolean;
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
+// interface SpeechRecognitionResult {
+//   isFinal: boolean;
+//   length: number;
+//   item(index: number): SpeechRecognitionAlternative;
+//   [index: number]: SpeechRecognitionAlternative;
+// }
 
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
+// interface SpeechRecognitionAlternative {
+//   transcript: string;
+//   confidence: number;
+// }
 
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-  message: string;
-}
+// interface SpeechRecognitionErrorEvent extends Event {
+//   error: string;
+//   message: string;
+// }
 
 declare global {
   interface Window {
     SpeechRecognition: new () => SpeechRecognition;
     webkitSpeechRecognition: new () => SpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    SpeechGrammarList?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    webkitSpeechGrammarList?: any;
   }
-}
-
-interface DebugInfo {
-  lineNumber: number;
-  transcript: string;
-  confidence: number;
-  utterance: string | null;
-  timestamp: number;
-  isFinal: boolean;
 }
 
 interface TopPanelDebugInfo {
@@ -88,11 +87,16 @@ interface ViewingConfiguration {
 }
 
 interface FinalSpeechDebugRow {
+  guessNumber: number;
   logMAR: number;
   transcript: string;
   correctness: "CORRECT" | "INCORRECT";
   acuityGuess: number;
   nextProposal: number;
+  ciLower: number;
+  ciUpper: number;
+  ciWidth: number;
+  totalCorrect: number;
 }
 
 interface LogMARChartProps {
@@ -154,6 +158,7 @@ const TARGET_CONFIDENCE_INTERVAL_WIDTH = 0.05;
 // Homophone mappings for common misrecognitions
 const HOMOPHONE_MAPPINGS: { [key: string]: string } = {
   CELL: "SOUTH",
+  SELF: "SOUTH",
   // Add more as needed
 };
 
@@ -182,7 +187,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const [currentLogMAR, setCurrentLogMAR] = useState(STARTING_LOGMAR);
   const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
   const [topPanelDebugInfo, setTopPanelDebugInfo] = useState<TopPanelDebugInfo | null>(null);
   const [alphaProbabilities, setAlphaProbabilities] = useState<
     { logMAR: number; probability: number }[]
@@ -362,6 +366,31 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     }
     try {
       const recognition = new window.webkitSpeechRecognition();
+      // Add grammar for Landolt C directions
+      const directions = [
+        "NORTH",
+        "NORTHEAST",
+        "EAST",
+        "SOUTHEAST",
+        "SOUTH",
+        "SOUTHWEST",
+        "WEST",
+        "NORTHWEST",
+      ];
+      const grammar =
+        "#JSGF V1.0; grammar directions; public <direction> = " + directions.join(" | ") + " ;";
+      const speechRecognitionList = new window.webkitSpeechGrammarList();
+      speechRecognitionList.addFromString(grammar, 1);
+      recognition.grammars = speechRecognitionList;
+      const SpeechGrammarListCtor = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+      if (SpeechGrammarListCtor) {
+        console.log(`Adding grammar: ${grammar}`);
+        const speechRecognitionList = new SpeechGrammarListCtor();
+        speechRecognitionList.addFromString(grammar, 1);
+        (
+          recognition as unknown as SpeechRecognition & { grammars?: typeof speechRecognitionList }
+        ).grammars = speechRecognitionList;
+      }
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = "en-US";
@@ -389,21 +418,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           // itself an array of alternatives on what the speech API thinks the user
           // said, sorted from most likely to least likely
           const fullTranscript = result[0].transcript;
-          const confidence = result[0].confidence;
           const recognizedOrientations = recognizeOrientationRef.current(fullTranscript);
-
-          setDebugInfo((prev) => {
-            const newInfo = {
-              lineNumber: speechEventCounterRef.current,
-              transcript: fullTranscript,
-              confidence,
-              utterance:
-                recognizedOrientations.length > 0 ? recognizedOrientations.join(", ") : null,
-              timestamp: Date.now(),
-              isFinal: result.isFinal,
-            };
-            return [...prev, newInfo].slice(-4);
-          });
 
           if (result.isFinal && recognizedOrientations.length > 0) {
             speechEventCounterRef.current += 1;
@@ -443,18 +458,24 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               });
               setAlphaProbabilities(currentProbs);
 
-              setSpeechDebugRows((prev) =>
-                [
-                  {
-                    logMAR: currentLogMARRef.current,
-                    transcript: orientation,
-                    correctness: (isCorrect ? "CORRECT" : "INCORRECT") as "CORRECT" | "INCORRECT",
-                    acuityGuess: guessedLogMAR,
-                    nextProposal: nextTrialLogMAR,
-                  },
-                  ...prev,
-                ].slice(0, 8)
-              ); // Show up to 8 most recent
+              if (isCorrect) totalCorrectRef.current += 1;
+              const newRow: FinalSpeechDebugRow = {
+                guessNumber: guessCounterRef.current++,
+                logMAR: currentLogMARRef.current,
+                transcript: orientation,
+                correctness: (isCorrect ? "CORRECT" : "INCORRECT") as "CORRECT" | "INCORRECT",
+                acuityGuess: guessedLogMAR,
+                nextProposal: nextTrialLogMAR,
+                ciLower: intervalLowerBound,
+                ciUpper: intervalUpperBound,
+                ciWidth: confidenceIntervalWidth,
+                totalCorrect: totalCorrectRef.current,
+              };
+              setSpeechDebugRows((prev) => {
+                const updated = [newRow, ...prev];
+                return updated.sort((a, b) => a.guessNumber - b.guessNumber).slice(-4); // Show only the last 4 guesses, ascending order
+              });
+              setAllSpeechDebugRows((prev) => [...prev, newRow]);
 
               setCurrentRowLetters((prev) => {
                 if (idx >= prev.length) return prev;
@@ -487,6 +508,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             };
             processNextLetter();
           }
+          setLastHeardTranscript({ transcript: fullTranscript, isFinal: result.isFinal });
         }
       };
       recognition.start();
@@ -584,6 +606,13 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const currentRowLettersRef = useRef<LetterState[]>([]);
 
   const [speechDebugRows, setSpeechDebugRows] = useState<FinalSpeechDebugRow[]>([]);
+  const [allSpeechDebugRows, setAllSpeechDebugRows] = useState<FinalSpeechDebugRow[]>([]);
+  const totalCorrectRef = useRef(0);
+  const guessCounterRef = useRef(1);
+  const [lastHeardTranscript, setLastHeardTranscript] = useState<{
+    transcript: string;
+    isFinal: boolean;
+  }>({ transcript: "", isFinal: false });
 
   return (
     <div
@@ -603,7 +632,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         style={{
           width: "100%",
           zIndex: 1000,
-          padding: "1rem",
+          padding: "0 1rem 1rem 1rem",
           backgroundColor: "#f0f0f0",
           borderBottom: "2px solid #ccc",
           fontFamily: "monospace",
@@ -612,32 +641,59 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
+          position: "relative",
         }}
       >
-        <div style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>
-          Speech Recognition Debug (final results only):
+        {/* Banner for last heard transcript */}
+        <div
+          style={{
+            background: "#e0e7ff",
+            color: "#1e293b",
+            padding: "0.2em 1em",
+            borderRadius: "6px",
+            marginTop: 0,
+            marginBottom: "0.75em",
+            fontWeight: 600,
+            fontSize: "1rem",
+            minHeight: "2.2em",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          {lastHeardTranscript.transcript
+            ? `Heard: "${lastHeardTranscript.transcript}" (${
+                lastHeardTranscript.isFinal ? "final" : "interim"
+              })`
+            : "Waiting for speech..."}
         </div>
+        {/* Debug table, no title */}
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>#</th>
                 <th style={{ textAlign: "left", paddingRight: "1em" }}>LogMAR</th>
                 <th style={{ textAlign: "left", paddingRight: "1em" }}>Transcript</th>
                 <th style={{ textAlign: "left", paddingRight: "1em" }}>Result</th>
                 <th style={{ textAlign: "left", paddingRight: "1em" }}>Acuity Guess</th>
                 <th style={{ textAlign: "left", paddingRight: "1em" }}>Next Proposal</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>CI Lower</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>CI Upper</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>CI Width</th>
+                <th style={{ textAlign: "left", paddingRight: "1em" }}>Hit Rate</th>
               </tr>
             </thead>
             <tbody>
               {speechDebugRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ color: "#666" }}>
+                  <td colSpan={10} style={{ color: "#666" }}>
                     No results yet...
                   </td>
                 </tr>
               ) : (
-                speechDebugRows.map((row, idx) => (
-                  <tr key={idx}>
+                speechDebugRows.map((row) => (
+                  <tr key={row.guessNumber}>
+                    <td>{row.guessNumber}</td>
                     <td>{row.logMAR.toFixed(3)}</td>
                     <td>{row.transcript}</td>
                     <td style={{ color: row.correctness === "CORRECT" ? "#16a34a" : "#dc2626" }}>
@@ -645,112 +701,72 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                     </td>
                     <td>{row.acuityGuess.toFixed(3)}</td>
                     <td>{row.nextProposal.toFixed(3)}</td>
+                    <td>{row.ciLower.toFixed(3)}</td>
+                    <td>{row.ciUpper.toFixed(3)}</td>
+                    <td>{row.ciWidth.toFixed(3)}</td>
+                    <td>{`${row.totalCorrect} / ${row.guessNumber}`}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-      </div>
-      {/* Speech Recognition Debug Info (fixed at top) */}
-      <div
-        style={{
-          width: "100%",
-          zIndex: 1000,
-          padding: "1rem",
-          backgroundColor: "#f0f0f0",
-          borderBottom: "2px solid #ccc",
-          fontFamily: "monospace",
-          fontSize: "1rem",
-          height: "20vh",
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "row", flex: 1 }}>
-          <div style={{ flex: 1, paddingRight: "1rem" }}>
-            <div
-              style={{
-                marginBottom: "0.5rem",
-                fontWeight: "bold",
-                fontSize: "1.1rem",
-              }}
-            >
-              Speech Recognition Debug Info:
-            </div>
-            {debugInfo.length === 0 ? (
-              <div style={{ color: "#666" }}>Waiting for speech input...</div>
-            ) : (
-              debugInfo.map((info) => (
-                <div
-                  key={info.timestamp}
-                  style={{
-                    marginBottom: "0.5rem",
-                    padding: "0.25rem",
-                    backgroundColor:
-                      info.lineNumber === speechEventCounterRef.current - 1
-                        ? "#e0e0e0"
-                        : "transparent",
-                  }}
-                >
-                  {`[${info.lineNumber}] "${info.transcript}" (${(info.confidence * 100).toFixed(
-                    1
-                  )}% confidence)`}
-                  {info.utterance && ` → Detected utterance: "${info.utterance}"`}
-                  {!info.isFinal && " (interim)"}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* New pane for guessing engine */}
-          <div
-            style={{
-              flex: 1,
-              paddingLeft: "1rem",
-              borderLeft: "1px solid #ccc",
-            }}
-          >
-            <div
-              style={{
-                fontWeight: "bold",
-                fontSize: "1.1rem",
-                marginBottom: "0.5rem",
-              }}
-            >
-              Guessing Engine State:
-            </div>
-            {topPanelDebugInfo ? (
-              <div>
-                <div>{`Next trial proposal: ${topPanelDebugInfo.nextTrialLogMAR.toFixed(
-                  3
-                )} LogMAR`}</div>
-                <div>{`Current acuity guess: ${topPanelDebugInfo.guessedLogMAR.toFixed(
-                  3
-                )} LogMAR`}</div>
-                <div>{`Confidence Interval: [${topPanelDebugInfo.intervalLowerBound.toFixed(
-                  3
-                )}, ${topPanelDebugInfo.intervalUpperBound.toFixed(
-                  3
-                )}] (width: ${topPanelDebugInfo.confidenceIntervalWidth.toFixed(3)})`}</div>
-              </div>
-            ) : (
-              <div>Awaiting first result...</div>
-            )}
-          </div>
-        </div>
-        <div
-          style={{
-            paddingTop: "1rem",
-            marginTop: "1rem",
-            borderTop: "1px solid #ccc",
-            textAlign: "center",
-            fontWeight: "bold",
+        {/* Copy CSV button */}
+        <button
+          onClick={() => {
+            const header = [
+              "#",
+              "LogMAR",
+              "Transcript",
+              "Result",
+              "Acuity Guess",
+              "Next Proposal",
+              "CI Lower",
+              "CI Upper",
+              "CI Width",
+              "Hit Rate",
+            ];
+            const rows = allSpeechDebugRows.map((row) => [
+              row.guessNumber,
+              row.logMAR,
+              row.transcript,
+              row.correctness,
+              row.acuityGuess,
+              row.nextProposal,
+              row.ciLower,
+              row.ciUpper,
+              row.ciWidth,
+              `${row.totalCorrect} / ${row.guessNumber}`,
+            ]);
+            const csv = [header, ...rows]
+              .map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(","))
+              .join("\n");
+            navigator.clipboard.writeText(csv);
           }}
+          style={{
+            position: "absolute",
+            bottom: 8,
+            right: 16,
+            fontSize: "0.85em",
+            padding: "0.25em 0.7em",
+            borderRadius: "4px",
+            border: "1px solid #bbb",
+            background: "#f8fafc",
+            color: "#334155",
+            cursor: "pointer",
+            opacity: 0.7,
+            transition: "opacity 0.2s, background 0.1s",
+            zIndex: 10,
+          }}
+          title="Copy all debug rows as CSV"
+          onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
+          onMouseOut={(e) => (e.currentTarget.style.opacity = "0.7")}
+          onMouseDown={(e) => (e.currentTarget.style.background = "#dbeafe")}
+          onMouseUp={(e) => (e.currentTarget.style.background = "#f8fafc")}
+          onBlur={(e) => (e.currentTarget.style.background = "#f8fafc")}
         >
-          {`Current row LogMAR: ${currentLogMAR.toFixed(3)}`}
-        </div>
+          Copy CSV
+        </button>
       </div>
       {/* Centered chart row below debug box */}
       <div
