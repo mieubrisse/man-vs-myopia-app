@@ -103,6 +103,7 @@ const TARGET_CONFIDENCE_INTERVAL_WIDTH = 0.05;
 const HOMOPHONE_MAPPINGS: { [key: string]: string } = {
   CELL: "SOUTH",
   SELF: "SOUTH",
+  QUEST: "WEST",
   // Add more as needed
 };
 
@@ -310,7 +311,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     }
     try {
       // Add grammar for Landolt C directions
-      const directions = [
+      const grammarWords = [
         "NORTH",
         "NORTHEAST",
         "EAST",
@@ -319,16 +320,17 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         "SOUTHWEST",
         "WEST",
         "NORTHWEST",
+        "FINISH",
       ];
       const grammar =
-        "#JSGF V1.0; grammar directions; public <direction> = " + directions.join(" | ") + " ;";
+        "#JSGF V1.0; grammar directions; public <direction> = " + grammarWords.join(" | ") + " ;";
       console.log(`Adding grammar: ${grammar}`);
       const SpeechGrammarListCtor = window.SpeechGrammarList || window.webkitSpeechGrammarList;
       if (!SpeechGrammarListCtor) {
         throw new Error("SpeechGrammarList is not supported in this browser.");
       }
       const speechRecognitionList: SpeechGrammarList = new SpeechGrammarListCtor();
-      speechRecognitionList.addFromString(grammar, 1);
+      speechRecognitionList.addFromString(grammar, 100); // Use 100 to force the recognition to strongly favor our stuff
 
       const recognition = new window.webkitSpeechRecognition();
       recognition.grammars = speechRecognitionList;
