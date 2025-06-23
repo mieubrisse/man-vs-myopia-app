@@ -143,6 +143,12 @@ Trade-off rule of thumb
 */
 const TARGET_CONFIDENCE_INTERVAL_WIDTH = 0.05;
 
+// Homophone mappings for common misrecognitions
+const HOMOPHONE_MAPPINGS: { [key: string]: string } = {
+  CELL: "SOUTH",
+  // Add more as needed
+};
+
 const LogMARChart: React.FC<LogMARChartProps> = ({
   onLetterValidated,
   calibrationData,
@@ -239,10 +245,10 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
     for (const word of words) {
       const trimmedWord = word.trim();
-      const orientation = ORIENTATION_MAPPINGS[trimmedWord];
-
-      if (orientation) {
-        recognizedOrientations.push(orientation);
+      // First check homophones
+      const mapped = HOMOPHONE_MAPPINGS[trimmedWord] || ORIENTATION_MAPPINGS[trimmedWord];
+      if (mapped) {
+        recognizedOrientations.push(mapped);
       }
     }
 
