@@ -1,5 +1,6 @@
 // The smallest resolution of a logMAR that we'll...
 // - Allow the user to enter
+
 // - Output, for proposing logMAR sizes
 const MAXIMUM_LOGMAR_PRECISION: number = 1000;
 
@@ -9,21 +10,145 @@ function normalizeVector(vector: number[]): number[] {
   return vector.map((val) => val / sum);
 }
 
-/*
-export type PsychometricCoreFunction = (
-  alpha: number,
-  beta: number,
-  x: number
-) => number;
+// See https://en.wikipedia.org/wiki/Entropy_(information_theory)
+export function calculateShannonEntropy(probabilities: number[]): number {
+  const totalEntropy = probabilities.reduce((totalEntropy, probability) => {
+    let entropy = 0;
+    if (probability !== 0) {
+      entropy = probability * Math.log(probability);
+    }
+    return totalEntropy - entropy;
+  }, 0);
 
-export function sigmoidFunction(
+  return totalEntropy;
+}
+
+/**
+ * Calculates a value using the logistic psychometric function: https://en.wikipedia.org/wiki/Logistic_function
+ *
+ * @param givenLogMAR The LogMAR value for which to calculate the probability, given the following logistic psychometric parameters.
+ *
+ * @param alpha The alpha parameter of the logistic psychometric function - the LogMAR value at which the user's probability
+ * to correctly identify the letter is 50%.
+ *
+ * @param beta The beta parameter of the logistic psychometric function - the slope around the alpha value indicating
+ * how quickly the user becomes able to identify the latter as font size (LogMAR) gets bigger.
+ *
+ * @param gamma The gamma parameter of the logistic psychometric function - the chance that the user will get the
+ * letter right purely by guessing.
+ *
+ * @param lambda The lambda param of the logistic psychometric function - the chance that the user will err a letter
+ * purely due to human error (even though it's well within their viewing ability).
+ *
+ * @returns The probability [0,1] that the user will correctly identify the letter at the given logMAR for
+ * the logistic psychometric distribution characterized by the given parameters.
+ */
+export function calculateLogisticPsychometric(
+  givenLogMAR: number,
   alpha: number,
   beta: number,
-  x: number
+  gamma: number,
+  lambda: number
 ): number {
-  return 1 / (1 + Math.exp(-beta * (x - alpha)));
+  return gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (givenLogMAR - alpha)));
 }
-  */
+
+/**
+ * Updates the probabilities of any given alpha being the true alpha given the user's performance
+ * on a letter identification task.
+ *
+ * @param testedLogMARThousandths The LogMAR value (in thousandths) of the symbol the user read (also known as tau, 𝝉)
+ * @param gotCorrect Whether the user correctly identified the letter
+ * @param allAlphaLogMARThousandths A vector of all the LogMAR thousandths of each alpha
+ * @param alphaPriors The probability that any given alpha is correct (prior)
+ * @param betaLogMARThousandths Psychometric beta, in thousands of LogMAR
+ * @param gamma Psychometric gamma (guess rate)
+ * @param lambda Psychometric lambda (guess rate)
+ * @returns A vector of the posterior probabilities for each alpha
+ */
+export function calculateAlphaLikelihoods(
+  testedLogMARThousandths: number,
+  gotCorrect: boolean,
+  allAlphaLogMARThousandths: number[],
+  alphaPriors: number[],
+  betaLogMARThousandths: number,
+  gamma: number,
+  lambda: number
+): number[] {
+  const alphaLikelihoods = new Array<number>();
+
+  // To update our priors, we:
+  // 1. Iterate over each alpha in the priors grid, and calculate Ψ(alpha, logMARTested) to see what the psychometric
+  //  function has to say about the likelihood of the user getting it right.
+  // 2. Compare what that alpha says about the likelihood of getting it right vs whether the user actually got it right
+  // 3. Update the likelihood of that alpha based on how close/far the Ψ(alpha, logMARTested) was to the user's actual result
+  for (const [idx, alphaLogMARThousandths] of allAlphaLogMARThousandths.entries()) {
+    const alphaProbability = alphaPriors[idx];
+
+    // This is the likelihood of the user getting it correct at the given alpha & tested LogMAR size
+    const probUserCorrectAtAlpha = calculateLogisticPsychometric(
+      testedLogMARThousandths,
+      alphaLogMARThousandths,
+      betaLogMARThousandths,
+      gamma,
+      lambda
+    );
+
+    const likelihood = gotCorrect ? probUserCorrectAtAlpha : 1 - probUserCorrectAtAlpha;
+
+    // Each alpha gets adjusted based on how confidently it stated that the user's guess would match what the user actually did
+    // For example:
+    // - Alphas that confidently state the user will get it right and are correct are adjusted up a lot
+    // - Alphas that confidently state the user will get it right and are wrong are adjusted down a lot
+    alphaLikelihoods.push(likelihood * alphaProbability);
+  }
+  return alphaLikelihoods;
+}
+
+export function proposeNextTrialLogMARThousandths(
+  alphaLogMARThousandths: number[],
+  alphaPriors: number[],
+  betaLogMARThousandths: number,
+  gamma: number,
+  lambda: number
+): number {
+  let bestLogMARThousandths: number = alphaLogMARThousandths[0];
+  let minimumEntropy = Infinity;
+
+  // Here we iterate through all possible LogMAR values (𝝉), calculating the alpha posteriors in
+  // the cases where the user gets it right and wrong
+  // We then calculate the Shannon entropy of those posteriors, so we can choose the LogMAR value
+  // that minimizes entropy
+  for (const testLogMARThousandths of alphaLogMARThousandths) {
+    let entropyForTestLogMARThousandths = 0;
+    for (const gotCorrect of [true, false]) {
+      const likelihoods = calculateAlphaLikelihoods(
+        testLogMARThousandths,
+        gotCorrect,
+        alphaLogMARThousandths,
+        alphaPriors,
+        betaLogMARThousandths,
+        gamma,
+        lambda
+      );
+      const posteriors = normalizeVector(likelihoods);
+      const entropyForGivenResult = calculateShannonEntropy(posteriors);
+
+      // This is the total probability that the user will get the specified true/false value
+      // given our alpha priors
+      // Put another way: P(user_result_for_test_logmar|alpha_priors)
+      const likelihoodSum = likelihoods.reduce((sum, likelihood) => sum + likelihood, 0);
+
+      entropyForTestLogMARThousandths += likelihoodSum * entropyForGivenResult;
+    }
+
+    if (entropyForTestLogMARThousandths < minimumEntropy) {
+      bestLogMARThousandths = testLogMARThousandths;
+      minimumEntropy = entropyForTestLogMARThousandths;
+    }
+  }
+  return bestLogMARThousandths;
+}
 
 /**
  * This class takes a very well-informed guess at what the user's LogMAR prescription is based on
@@ -200,16 +325,15 @@ export class UserLogMARGuessingEngine {
    * the user getting tested against that line.
    */
   proposeNextTrialLogMAR(): number {
-    // TODO Use a better method of choosing the next trial - prior mean is the basic version,
-    // but we can do better with an entropy minimization scheme. I don't do this now because
-    // it's not that important - just reduces the number of letters we have to show the user.
-    let expectedValueThousandths = 0;
-    for (const [idx, logMARThousandths] of this.alphaLogMARThousandths.entries()) {
-      const probability = this.alphaProbabilities[idx];
-      expectedValueThousandths += logMARThousandths * probability;
-    }
+    const nextLogMARThousandths = proposeNextTrialLogMARThousandths(
+      this.alphaLogMARThousandths,
+      this.alphaProbabilities,
+      UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
+      1 / this.numDistinctOptotypes,
+      UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA
+    );
 
-    return Math.floor(expectedValueThousandths) / MAXIMUM_LOGMAR_PRECISION;
+    return Math.floor(nextLogMARThousandths) / MAXIMUM_LOGMAR_PRECISION;
   }
 
   /**
@@ -225,45 +349,18 @@ export class UserLogMARGuessingEngine {
       );
     }
 
-    const alphaRelativeBeliefs = new Array<number>();
-
-    // To update our priors, we:
-    // 1. Iterate over each alpha in the priors grid, and calculate Ψ(alpha, logMARTested) to see what the psychometric
-    //  function has to say about the likelihood of the user getting it right.
-    // 2. Compare what that alpha says about the likelihood of getting it right vs whether the user actually got it right
-    // 3. Update the likelihood of that alpha based on how close/far the Ψ(alpha, logMARTested) was to the user's actual result
-    // The resulting grid of (alpha, probability) form our priors.
-    for (const [idx, alphaLogMARThousandths] of this.alphaLogMARThousandths.entries()) {
-      const probabilityOfAlpha = this.alphaProbabilities[idx];
-
-      // This is the likelihood of the user getting it correct at the given alpha & tested LogMAR size
-      const likelihoodOfCorrectGivenAlpha = UserLogMARGuessingEngine.calculateLogisticPsychometric(
-        testedLogMARThousandths,
-        alphaLogMARThousandths,
-        UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
-        1 / this.numDistinctOptotypes,
-        UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA
-      );
-
-      // Incorporate failure if the user failed
-      let likelihoodOfGivenAlpha: number;
-      if (gotCorrectResult) {
-        likelihoodOfGivenAlpha = likelihoodOfCorrectGivenAlpha;
-      } else {
-        likelihoodOfGivenAlpha = 1 - likelihoodOfCorrectGivenAlpha;
-      }
-
-      // Now we adjust each alpha based on how confidently it stated that the user's guess would match what the user actually did
-      // For example:
-      // - Alphas that confidently state the user will get it right and are correct are adjusted up a lot
-      // - Alphas that confidently state the user will get it right and are wrong are adjusted down a lot
-      const relativeBeliefInAlpha = probabilityOfAlpha * likelihoodOfGivenAlpha;
-
-      alphaRelativeBeliefs.push(relativeBeliefInAlpha);
-    }
+    const alphaLikelihoods = calculateAlphaLikelihoods(
+      logMARTested,
+      gotCorrectResult,
+      this.alphaLogMARThousandths,
+      this.alphaProbabilities,
+      UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS,
+      1 / this.numDistinctOptotypes,
+      UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA
+    );
 
     // Normalize relative belief back into probabilities
-    const alphaPosteriors = normalizeVector(alphaRelativeBeliefs);
+    const alphaPosteriors = normalizeVector(alphaLikelihoods);
 
     // Now, use the posterior as the prior for our next trial
     this.alphaProbabilities = alphaPosteriors;
@@ -355,36 +452,6 @@ export class UserLogMARGuessingEngine {
   }
 
   /**
-   * Calculates a value using the logistic psychometric function: https://en.wikipedia.org/wiki/Logistic_function
-   *
-   * @param givenLogMAR The LogMAR value for which to calculate the probability, given the following logistic psychometric parameters.
-   *
-   * @param alpha The alpha parameter of the logistic psychometric function - the LogMAR value at which the user's probability
-   * to correctly identify the letter is 50%.
-   *
-   * @param beta The beta parameter of the logistic psychometric function - the slope around the alpha value indicating
-   * how quickly the user becomes able to identify the latter as font size (LogMAR) gets bigger.
-   *
-   * @param gamma The gamma parameter of the logistic psychometric function - the chance that the user will get the
-   * letter right purely by guessing.
-   *
-   * @param lambda The lambda param of the logistic psychometric function - the chance that the user will err a letter
-   * purely due to human error (even though it's well within their viewing ability).
-   *
-   * @returns The probability [0,1] that the user will correctly identify the letter at the given logMAR for
-   * the logistic psychometric distribution characterized by the given parameters.
-   */
-  static calculateLogisticPsychometric(
-    givenLogMAR: number,
-    alpha: number,
-    beta: number,
-    gamma: number,
-    lambda: number
-  ): number {
-    return gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (givenLogMAR - alpha)));
-  }
-
-  /**
    * When looking for the lower & upper confidence interval edges, we'll eventually come across a bucket that contains the edge we're looking for.
    *
    * This function finds the exact LogMAR value at which our edge exists.
@@ -430,83 +497,4 @@ export class UserLogMARGuessingEngine {
 
     return absoluteBoundLogMAR;
   }
-}
-
-/**
- * Given a set of alpha priors, returns the LogMAR value that would minimize the expected posterior entropy after the next trial.
- * This is the QUEST+ entropy-minimization approach.
- *
- * @param alphaPriors Map<LogMAR, probability>
- * @param numDistinctOptotypes Number of possible optotypes (e.g., 8 for Landolt C)
- * @param beta Slope parameter for the psychometric function
- * @param lambda Lapse rate for the psychometric function
- * @returns The LogMAR value to test next
- */
-export function proposeNextTrialLogMAREntropyMinimization(
-  alphaPriors: Map<number, number>,
-  numDistinctOptotypes: number,
-  beta: number,
-  lambda: number
-): number {
-  // Helper: entropy of a probability distribution
-  function entropy(probMap: Map<number, number>): number {
-    let h = 0;
-    for (const p of probMap.values()) {
-      if (p > 0) h -= p * Math.log2(p);
-    }
-    return h;
-  }
-
-  // We'll only consider LogMARs in the prior grid
-  const candidateLogMARs = [...alphaPriors.keys()];
-  let minExpectedEntropy = Infinity;
-  let bestLogMAR = candidateLogMARs[0];
-
-  for (const testLogMAR of candidateLogMARs) {
-    // For each possible outcome (correct/incorrect)
-    let expectedEntropy = 0;
-    for (const gotCorrect of [true, false]) {
-      // Simulate updating the priors
-      const updatedPriors = new Map<number, number>();
-      let sum = 0;
-      for (const [alpha, priorP] of alphaPriors) {
-        // Use the same psychometric as the engine
-        const pCorrect = UserLogMARGuessingEngine.calculateLogisticPsychometric(
-          testLogMAR * 1000, // match engine's use of thousandths
-          alpha * 1000,
-          beta,
-          1 / numDistinctOptotypes,
-          lambda
-        );
-        const likelihood = gotCorrect ? pCorrect : 1 - pCorrect;
-        const post = priorP * likelihood;
-        updatedPriors.set(alpha, post);
-        sum += post;
-      }
-      // Normalize
-      for (const [alpha, post] of updatedPriors) {
-        updatedPriors.set(alpha, post / sum);
-      }
-      // Compute entropy
-      const h = entropy(updatedPriors);
-      // Probability of this outcome
-      let pOutcome = 0;
-      for (const [alpha, priorP] of alphaPriors) {
-        const pCorrect = UserLogMARGuessingEngine.calculateLogisticPsychometric(
-          testLogMAR * 1000,
-          alpha * 1000,
-          beta,
-          1 / numDistinctOptotypes,
-          lambda
-        );
-        pOutcome += priorP * (gotCorrect ? pCorrect : 1 - pCorrect);
-      }
-      expectedEntropy += pOutcome * h;
-    }
-    if (expectedEntropy < minExpectedEntropy) {
-      minExpectedEntropy = expectedEntropy;
-      bestLogMAR = testLogMAR;
-    }
-  }
-  return bestLogMAR;
 }
