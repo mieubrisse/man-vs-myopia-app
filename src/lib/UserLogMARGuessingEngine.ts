@@ -1,7 +1,3 @@
-export interface UserLogMARGuess {
-  logMARGuess: number;
-}
-
 // The smallest resolution of a logMAR that we'll...
 // - Allow the user to enter
 // - Output, for proposing logMAR sizes
@@ -39,7 +35,7 @@ export function sigmoidFunction(
 // TODO Incorporate the Stanford Visual Acuity Test?? https://stanford.edu/~cpiech/bio/papers/StAT.pdf?utm_source=chatgpt.com
 export class UserLogMARGuessingEngine {
   // This is the slope at alpha (the point where probability of the user's correct guess crosses 1.0)
-  // ChatGPT says "High-contrast Sloan letters, fovea, adult observers → β ≈ 10 – 15 for the logistic form we’ve been using"
+  // ChatGPT says "High-contrast Sloan letters, fovea, adult observers → β ≈ 10 – 15 for the logistic form we've been using"
   // TODO Derive this value independently from user observation, preferably taking into account light/contrast levels as well
   /*
    This is important because according to ChatGPT:
@@ -57,7 +53,9 @@ export class UserLogMARGuessingEngine {
   // TODO maybe guess this dynamically???
   private static LOGISTIC_PSYCHOMETRIC_LAMBDA: number = 0.01; // Chose this number completely arbitrarily
 
-  private alphaPriors: Map<number, number>; // Keys are THOUSANDTHS of LogMAR (to avoid floating-point silliness)
+  private alphaLogMARThousandths: number[];
+  private alphaProbabilities: number[]; // The posterior
+  // private alphaPriors: Map<number, number>; // Keys are THOUSANDTHS of LogMAR (to avoid floating-point silliness)
   private logMARGap: number;
   private numDistinctOptotypes: number;
   private confidenceInterval: number;
@@ -404,4 +402,83 @@ export class UserLogMARGuessingEngine {
 
     return absoluteBoundLogMAR;
   }
+}
+
+/**
+ * Given a set of alpha priors, returns the LogMAR value that would minimize the expected posterior entropy after the next trial.
+ * This is the QUEST+ entropy-minimization approach.
+ *
+ * @param alphaPriors Map<LogMAR, probability>
+ * @param numDistinctOptotypes Number of possible optotypes (e.g., 8 for Landolt C)
+ * @param beta Slope parameter for the psychometric function
+ * @param lambda Lapse rate for the psychometric function
+ * @returns The LogMAR value to test next
+ */
+export function proposeNextTrialLogMAREntropyMinimization(
+  alphaPriors: Map<number, number>,
+  numDistinctOptotypes: number,
+  beta: number,
+  lambda: number
+): number {
+  // Helper: entropy of a probability distribution
+  function entropy(probMap: Map<number, number>): number {
+    let h = 0;
+    for (const p of probMap.values()) {
+      if (p > 0) h -= p * Math.log2(p);
+    }
+    return h;
+  }
+
+  // We'll only consider LogMARs in the prior grid
+  const candidateLogMARs = [...alphaPriors.keys()];
+  let minExpectedEntropy = Infinity;
+  let bestLogMAR = candidateLogMARs[0];
+
+  for (const testLogMAR of candidateLogMARs) {
+    // For each possible outcome (correct/incorrect)
+    let expectedEntropy = 0;
+    for (const gotCorrect of [true, false]) {
+      // Simulate updating the priors
+      const updatedPriors = new Map<number, number>();
+      let sum = 0;
+      for (const [alpha, priorP] of alphaPriors) {
+        // Use the same psychometric as the engine
+        const pCorrect = UserLogMARGuessingEngine.calculateLogisticPsychometric(
+          testLogMAR * 1000, // match engine's use of thousandths
+          alpha * 1000,
+          beta,
+          1 / numDistinctOptotypes,
+          lambda
+        );
+        const likelihood = gotCorrect ? pCorrect : 1 - pCorrect;
+        const post = priorP * likelihood;
+        updatedPriors.set(alpha, post);
+        sum += post;
+      }
+      // Normalize
+      for (const [alpha, post] of updatedPriors) {
+        updatedPriors.set(alpha, post / sum);
+      }
+      // Compute entropy
+      const h = entropy(updatedPriors);
+      // Probability of this outcome
+      let pOutcome = 0;
+      for (const [alpha, priorP] of alphaPriors) {
+        const pCorrect = UserLogMARGuessingEngine.calculateLogisticPsychometric(
+          testLogMAR * 1000,
+          alpha * 1000,
+          beta,
+          1 / numDistinctOptotypes,
+          lambda
+        );
+        pOutcome += priorP * (gotCorrect ? pCorrect : 1 - pCorrect);
+      }
+      expectedEntropy += pOutcome * h;
+    }
+    if (expectedEntropy < minExpectedEntropy) {
+      minExpectedEntropy = expectedEntropy;
+      bestLogMAR = testLogMAR;
+    }
+  }
+  return bestLogMAR;
 }
