@@ -348,7 +348,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     }
     try {
       const recognition = new window.webkitSpeechRecognition();
-      recognition.continuous = true;
+      recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = "en-US";
       recognitionRef.current = recognition;
@@ -368,89 +368,98 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         }
       };
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const result = event.results[event.results.length - 1];
-        const fullTranscript = result[0].transcript;
-        const confidence = result[0].confidence;
-        const recognizedOrientations = recognizeOrientationRef.current(fullTranscript);
-        setDebugInfo((prev) => {
-          const newInfo = {
-            lineNumber: speechEventCounterRef.current,
-            transcript: fullTranscript,
-            confidence,
-            utterance: recognizedOrientations.length > 0 ? recognizedOrientations.join(", ") : null,
-            timestamp: Date.now(),
-            isFinal: result.isFinal,
-          };
-          speechEventCounterRef.current += 1;
-          return [...prev, newInfo].slice(-4);
-        });
-        if (result.isFinal && recognizedOrientations.length > 0) {
-          let letterIndex = 0;
-          const processNextLetter = () => {
-            if (letterIndex >= recognizedOrientations.length) return;
-            const orientation = recognizedOrientations[letterIndex];
-            if (orientation === "FINISH") {
-              setIsAssessmentFinished(true);
-              finishAssessmentRef.current();
-              if (recognitionRef.current) recognitionRef.current.stop();
-              return;
-            }
-            const idx = currentLetterIndexRef.current;
-            const rowLetters = currentRowLettersRef.current;
-            const currentLetter = rowLetters[idx];
-            if (!currentLetter) return;
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const result = event.results[i];
 
-            const isCorrect = orientation === currentLetter.orientation;
+          // Note to self: the reason we index into "result" is because result is
+          // itself an array of alternatives on what the speech API thinks the user
+          // said, sorted from most likely to least likely
+          const fullTranscript = result[0].transcript;
+          const confidence = result[0].confidence;
+          const recognizedOrientations = recognizeOrientationRef.current(fullTranscript);
 
-            // Update the guessing engine in the background
-            guessingEngine.updateGivenTrialResult(currentLogMARRef.current, isCorrect);
-            const { guessedLogMAR, intervalLowerBound, intervalUpperBound } =
-              guessingEngine.guessUserLogMAR();
-            const nextTrialLogMAR = guessingEngine.proposeNextTrialLogMAR();
-            const currentProbs = Array.from(guessingEngine.getAlphaProbabilities().entries()).map(
-              ([logMAR, probability]) => ({ logMAR, probability })
-            );
-            const confidenceIntervalWidth = intervalUpperBound - intervalLowerBound;
+          setDebugInfo((prev) => {
+            const newInfo = {
+              lineNumber: speechEventCounterRef.current,
+              transcript: fullTranscript,
+              confidence,
+              utterance:
+                recognizedOrientations.length > 0 ? recognizedOrientations.join(", ") : null,
+              timestamp: Date.now(),
+              isFinal: result.isFinal,
+            };
+            return [...prev, newInfo].slice(-4);
+          });
 
-            setTopPanelDebugInfo({
-              guessedLogMAR,
-              intervalLowerBound,
-              intervalUpperBound,
-              nextTrialLogMAR,
-              confidenceIntervalWidth,
-            });
-            setAlphaProbabilities(currentProbs);
-
-            setCurrentRowLetters((prev) => {
-              if (idx >= prev.length) return prev;
-              const updated = [...prev];
-              updated[idx].status = isCorrect ? "correct" : "incorrect";
-              if (idx + 1 < updated.length) {
-                updated[idx + 1].status = "current";
+          if (result.isFinal && recognizedOrientations.length > 0) {
+            speechEventCounterRef.current += 1;
+            let letterIndex = 0;
+            const processNextLetter = () => {
+              if (letterIndex >= recognizedOrientations.length) return;
+              const orientation = recognizedOrientations[letterIndex];
+              if (orientation === "FINISH") {
+                setIsAssessmentFinished(true);
+                finishAssessmentRef.current();
+                if (recognitionRef.current) recognitionRef.current.stop();
+                return;
               }
-              return updated;
-            });
+              const idx = currentLetterIndexRef.current;
+              const rowLetters = currentRowLettersRef.current;
+              const currentLetter = rowLetters[idx];
+              if (!currentLetter) return;
 
-            // Update the score map
-            setLogMARScoreMap((prev) => {
-              const newMap = new Map(prev);
-              const currentScores = newMap.get(currentLogMARRef.current) || {
-                attempted: 0,
-                correct: 0,
-              };
-              newMap.set(currentLogMARRef.current, {
-                attempted: currentScores.attempted + 1,
-                correct: currentScores.correct + (isCorrect ? 1 : 0),
+              const isCorrect = orientation === currentLetter.orientation;
+
+              // Update the guessing engine in the background
+              guessingEngine.updateGivenTrialResult(currentLogMARRef.current, isCorrect);
+              const { guessedLogMAR, intervalLowerBound, intervalUpperBound } =
+                guessingEngine.guessUserLogMAR();
+              const confidenceIntervalWidth = intervalUpperBound - intervalLowerBound;
+              const nextTrialLogMAR = guessingEngine.proposeNextTrialLogMAR();
+              const currentProbs = Array.from(guessingEngine.getAlphaProbabilities().entries()).map(
+                ([logMAR, probability]) => ({ logMAR, probability })
+              );
+
+              setTopPanelDebugInfo({
+                guessedLogMAR,
+                intervalLowerBound,
+                intervalUpperBound,
+                nextTrialLogMAR,
+                confidenceIntervalWidth,
               });
-              return newMap;
-            });
+              setAlphaProbabilities(currentProbs);
 
-            onLetterValidatedRef.current?.(isCorrect);
-            setCurrentLetterIndex((prev) => prev + 1);
-            letterIndex++;
-            setTimeout(processNextLetter, 100);
-          };
-          processNextLetter();
+              setCurrentRowLetters((prev) => {
+                if (idx >= prev.length) return prev;
+                const updated = [...prev];
+                updated[idx].status = isCorrect ? "correct" : "incorrect";
+                if (idx + 1 < updated.length) {
+                  updated[idx + 1].status = "current";
+                }
+                return updated;
+              });
+
+              // Update the score map
+              setLogMARScoreMap((prev) => {
+                const newMap = new Map(prev);
+                const currentScores = newMap.get(currentLogMARRef.current) || {
+                  attempted: 0,
+                  correct: 0,
+                };
+                newMap.set(currentLogMARRef.current, {
+                  attempted: currentScores.attempted + 1,
+                  correct: currentScores.correct + (isCorrect ? 1 : 0),
+                });
+                return newMap;
+              });
+
+              onLetterValidatedRef.current?.(isCorrect);
+              setCurrentLetterIndex((prev) => prev + 1);
+              letterIndex++;
+              setTimeout(processNextLetter, 100);
+            };
+            processNextLetter();
+          }
         }
       };
       recognition.start();
