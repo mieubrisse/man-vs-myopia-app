@@ -75,6 +75,7 @@ const App: React.FC = () => {
     distanceCentimeters: number;
   }) => {
     setSelectedViewingConfiguration(configuration);
+    localStorage.setItem("lastSelectedViewingConfigurationId", configuration.id);
 
     // Get calibration data from localStorage
     const fontHeightCm = localStorage.getItem("fontHeightCm");

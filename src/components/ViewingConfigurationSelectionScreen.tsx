@@ -12,14 +12,12 @@ interface ViewingConfigurationSelectionScreenProps {
   onStartAssessment: (selectedConfiguration: ViewingConfiguration) => void;
 }
 
-const ViewingConfigurationSelectionScreen: React.FC<
-  ViewingConfigurationSelectionScreenProps
-> = ({ onGoHome, onStartAssessment }) => {
-  const [configurations, setConfigurations] = useState<ViewingConfiguration[]>(
-    []
-  );
-  const [selectedConfigurationId, setSelectedConfigurationId] =
-    useState<string>("");
+const ViewingConfigurationSelectionScreen: React.FC<ViewingConfigurationSelectionScreenProps> = ({
+  onGoHome,
+  onStartAssessment,
+}) => {
+  const [configurations, setConfigurations] = useState<ViewingConfiguration[]>([]);
+  const [selectedConfigurationId, setSelectedConfigurationId] = useState<string>("");
 
   // Load configurations and set first one as selected
   useEffect(() => {
@@ -28,7 +26,11 @@ const ViewingConfigurationSelectionScreen: React.FC<
       try {
         const parsed = JSON.parse(savedConfigurations);
         setConfigurations(parsed);
-        if (parsed.length > 0) {
+
+        const lastSelectedId = localStorage.getItem("lastSelectedViewingConfigurationId");
+        if (lastSelectedId && parsed.some((c: ViewingConfiguration) => c.id === lastSelectedId)) {
+          setSelectedConfigurationId(lastSelectedId);
+        } else if (parsed.length > 0) {
           setSelectedConfigurationId(parsed[0].id);
         }
       } catch {
@@ -38,9 +40,7 @@ const ViewingConfigurationSelectionScreen: React.FC<
   }, []);
 
   const handleStartAssessment = () => {
-    const selectedConfig = configurations.find(
-      (config) => config.id === selectedConfigurationId
-    );
+    const selectedConfig = configurations.find((config) => config.id === selectedConfigurationId);
     if (selectedConfig) {
       onStartAssessment(selectedConfig);
     }
@@ -61,8 +61,7 @@ const ViewingConfigurationSelectionScreen: React.FC<
       <div className="selection-container">
         <h1>Select Viewing Configuration</h1>
         <p className="selection-description">
-          Choose the viewing configuration that matches your current setup for
-          this assessment.
+          Choose the viewing configuration that matches your current setup for this assessment.
         </p>
 
         <div className="configurations-selection">
