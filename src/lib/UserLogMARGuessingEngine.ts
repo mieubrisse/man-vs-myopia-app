@@ -1,10 +1,9 @@
 // The smallest resolution of a logMAR that we'll...
 // - Allow the user to enter
-
 // - Output, for proposing logMAR sizes
 const MAXIMUM_LOGMAR_PRECISION: number = 1000;
 
-// This is the slope at alpha (the point where probability of the user's correct guess crosses 1.0)
+// This is the slope at alpha (the point where the user's guess probability crosses 0.5 in the underlying sigmoid function)
 // ChatGPT says "High-contrast Sloan letters, fovea, adult observers → β ≈ 10 – 15 for the logistic form we've been using"
 // TODO Derive this value independently from user observation, preferably taking into account light/contrast levels as well
 /*
@@ -22,8 +21,7 @@ const LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.015; // 15.0 con
 
 function normalizeVector(vector: number[]): number[] {
   const sum = vector.reduce((prevVal, curr) => prevVal + curr, 0);
-
-  return vector.map((val) => val / sum);
+  return sum ? vector.map((val) => val / sum) : vector;
 }
 
 // See https://en.wikipedia.org/wiki/Entropy_(information_theory)
@@ -42,9 +40,9 @@ export function calculateShannonEntropy(probabilities: number[]): number {
 /**
  * Calculates a value using the logistic psychometric function: https://en.wikipedia.org/wiki/Logistic_function
  *
- * @param givenLogMAR The LogMAR value for which to calculate the probability, given the following logistic psychometric parameters.
+ * @param logMARThousandths The LogMAR value (in thousandths of LogMAR) for which to calculate the probability, given the following logistic psychometric parameters.
  *
- * @param alpha The alpha parameter of the logistic psychometric function - the LogMAR value at which the user's probability
+ * @param alphaThousandths The alpha parameter of the logistic psychometric function - the LogMAR value at which the user's probability
  * to correctly identify the letter is 50%.
  *
  * @param beta The beta parameter of the logistic psychometric function - the slope around the alpha value indicating
@@ -60,13 +58,15 @@ export function calculateShannonEntropy(probabilities: number[]): number {
  * the logistic psychometric distribution characterized by the given parameters.
  */
 export function calculateLogisticPsychometric(
-  givenLogMAR: number,
-  alpha: number,
+  logMARThousandths: number,
+  alphaThousandths: number,
   beta: number,
   gamma: number,
   lambda: number
 ): number {
-  return gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (givenLogMAR - alpha)));
+  return (
+    gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (logMARThousandths - alphaThousandths)))
+  );
 }
 
 /**
@@ -387,7 +387,8 @@ export class UserLogMARGuessingEngine {
    * best choice for error minimization](https://jov.arvojournals.org/article.aspx?articleid=2611972#:~:text=subsequently%20showed%20through%20simulation%20that%20the%20mean%20of%20the%20density%20was%20a%20better%20choice).
    */
   guessUserLogMAR(): {
-    guessedLogMAR: number;
+    guessedLogMAR: number; // The 𝛂 value of the logistic Ψ function the engine thinks fits the user's observations
+    beta: number; // The β value of the logistic Ψ function the engine thinks fits the user's observations
     intervalLowerBound: number;
     intervalUpperBound: number;
   } {
@@ -449,6 +450,7 @@ export class UserLogMARGuessingEngine {
 
     return {
       guessedLogMAR: guessedLogMAR,
+      beta: LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS * MAXIMUM_LOGMAR_PRECISION,
       intervalLowerBound: lowerBoundThousandths / MAXIMUM_LOGMAR_PRECISION,
       intervalUpperBound: upperBoundThousandths / MAXIMUM_LOGMAR_PRECISION,
     };

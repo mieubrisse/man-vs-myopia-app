@@ -722,7 +722,26 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           height: "55vh",
         }}
       >
-        <div style={{ padding: "1rem" }}>
+        <div
+          style={{
+            padding: "1rem",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          {/* Show current LogMAR above the progress boxes */}
+          <div
+            style={{
+              marginBottom: "0.5em",
+              fontWeight: 600,
+              fontSize: "1.1em",
+              color: "#334155",
+              letterSpacing: "0.02em",
+            }}
+          >
+            LogMAR: {currentLogMAR.toFixed(3)}
+          </div>
           <ResponseIndicator responses={currentLetterIndex} total={NUM_LETTERS_PER_LINE} />
         </div>
         <div
