@@ -811,7 +811,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       {(() => {
         // X values: the LogMARs from the alphaProbabilities
         const alphaProbabilities = guessingEngine.getAlphaProbabilities();
-        const alphaLogMARs: number[] = [...alphaProbabilities.keys()];
+        const alphaLogMARs: number[] = [...alphaProbabilities.keys()].sort((a, b) => a - b);
         return (
           <div
             style={{
@@ -834,8 +834,8 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               const psychometricLine: ProbabilityGraphDatapoint[] = alphaLogMARs.map((logMAR) => ({
                 logMAR,
                 probability: calculateLogisticPsychometric(
-                  Math.floor(logMAR * 1000),
-                  Math.floor(guessedLogMAR * 1000),
+                  logMAR,
+                  guessedLogMAR,
                   beta,
                   gamma,
                   lambda
@@ -847,12 +847,17 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 firstFew: psychometricLine.slice(0, 3),
               });
 
-              const alphaProbabilitiesForGraph: ProbabilityGraphDatapoint[] = [];
-              alphaProbabilities.forEach((probability, logMAR) =>
-                alphaProbabilitiesForGraph.push({
-                  logMAR: logMAR,
-                  probability: probability,
-                })
+              const alphaProbabilitiesForGraph: ProbabilityGraphDatapoint[] = alphaLogMARs.map(
+                (logMAR) => {
+                  const probability = alphaProbabilities.get(logMAR);
+                  if (probability === undefined) {
+                    throw new Error("Couldn't find LogMAR in probability graph; this is a bug");
+                  }
+                  return {
+                    logMAR: logMAR,
+                    probability: probability,
+                  };
+                }
               );
 
               // Pass both the alphaProbabilities and the psychometricLine to the graph

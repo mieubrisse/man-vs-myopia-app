@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
   XAxis,
   YAxis,
@@ -30,10 +30,20 @@ const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({
     ...(psychometricLine ? psychometricLine.map((d) => d.logMAR) : []),
   ];
   const domain = [Math.min(...allLogMARs), Math.max(...allLogMARs)];
+
+  // Merge both series into a single data array for Recharts
+  const mergedData = alphaPosteriors.map((bar, i) => ({
+    logMAR: bar.logMAR,
+    barProbability: bar.probability,
+    lineProbability: psychometricLine ? psychometricLine[i]?.probability ?? null : null,
+  }));
+
+  console.log(mergedData);
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={alphaPosteriors}
+      <ComposedChart
+        data={mergedData}
         margin={{
           top: 5,
           right: 30,
@@ -48,23 +58,31 @@ const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({
           domain={domain}
           tickFormatter={(tick) => tick.toFixed(2)}
         />
-        <YAxis yAxisId="left" orientation="left" />
-        <YAxis yAxisId="right" orientation="right" />
-        <Tooltip formatter={(value: number) => [value.toExponential(2), "Probability"]} />
-        <Bar yAxisId="left" dataKey="probability" fill="#3b82f6" />
-        {psychometricLine && (
-          <Line
-            yAxisId="right"
-            data={psychometricLine}
-            type="monotone"
-            dataKey="probability"
-            stroke="#f59e42"
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-        )}
-      </BarChart>
+        <YAxis
+          yAxisId="left"
+          orientation="left"
+          domain={[0, "dataMax"]}
+          tickFormatter={(tick) => tick.toFixed(3)}
+        />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          domain={[0, 1]}
+          tickFormatter={(tick) => tick.toFixed(2)}
+          label={{ value: "Psychometric P(correct)", angle: 90, position: "insideRight" }}
+        />
+        <Tooltip formatter={(value: number) => [value.toFixed(3), "Probability"]} />
+        <Bar yAxisId="left" dataKey="barProbability" fill="#3b82f6" />
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="lineProbability"
+          stroke="#f59e42"
+          dot
+          isAnimationActive={false}
+          connectNulls={true}
+        />
+      </ComposedChart>
     </ResponsiveContainer>
   );
 };

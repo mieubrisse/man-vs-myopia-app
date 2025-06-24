@@ -38,7 +38,8 @@ export function calculateShannonEntropy(probabilities: number[]): number {
 }
 
 /**
- * Calculates a value using the logistic psychometric function: https://en.wikipedia.org/wiki/Logistic_function
+ * Calculates a value using the logistic psychometric function: https://en.wikipedia.org/wiki/Logistic_function .
+ * The units are unimportant, just so long as the units of "x", "alpha", and "beta" match.
  *
  * @param x The LogMAR value for which to calculate the probability, given the following logistic psychometric parameters.
  *
@@ -64,9 +65,7 @@ export function calculateLogisticPsychometric(
   gamma: number,
   lambda: number
 ): number {
-  return (
-    gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (x - alpha)))
-  );
+  return gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (x - alpha)));
 }
 
 /**
