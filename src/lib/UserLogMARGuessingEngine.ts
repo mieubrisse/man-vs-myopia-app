@@ -40,9 +40,9 @@ export function calculateShannonEntropy(probabilities: number[]): number {
 /**
  * Calculates a value using the logistic psychometric function: https://en.wikipedia.org/wiki/Logistic_function
  *
- * @param logMARThousandths The LogMAR value (in thousandths of LogMAR) for which to calculate the probability, given the following logistic psychometric parameters.
+ * @param x The LogMAR value for which to calculate the probability, given the following logistic psychometric parameters.
  *
- * @param alphaThousandths The alpha parameter of the logistic psychometric function - the LogMAR value at which the user's probability
+ * @param alpha The alpha parameter of the logistic psychometric function - the LogMAR value at which the user's probability
  * to correctly identify the letter is 50%.
  *
  * @param beta The beta parameter of the logistic psychometric function - the slope around the alpha value indicating
@@ -58,14 +58,14 @@ export function calculateShannonEntropy(probabilities: number[]): number {
  * the logistic psychometric distribution characterized by the given parameters.
  */
 export function calculateLogisticPsychometric(
-  logMARThousandths: number,
-  alphaThousandths: number,
+  x: number,
+  alpha: number,
   beta: number,
   gamma: number,
   lambda: number
 ): number {
   return (
-    gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (logMARThousandths - alphaThousandths)))
+    gamma + (1 - lambda - gamma) / (1 + Math.exp(-beta * (x - alpha)))
   );
 }
 
@@ -193,8 +193,7 @@ export function proposeNextTrialLogMARThousandths(
  */
 // TODO Incorporate the Stanford Visual Acuity Test?? https://stanford.edu/~cpiech/bio/papers/StAT.pdf?utm_source=chatgpt.com
 export class UserLogMARGuessingEngine {
-  // TODO maybe guess this dynamically???
-  private static LOGISTIC_PSYCHOMETRIC_LAMBDA: number = 0.01; // Chose this number completely arbitrarily
+  public static LOGISTIC_PSYCHOMETRIC_LAMBDA: number = 0.01; // Chose this number completely arbitrarily
 
   private alphaLogMARThousandths: number[];
   private alphaProbabilities: number[]; // The posterior

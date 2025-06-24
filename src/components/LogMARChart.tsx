@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import "./LogMARChart.css";
 import { LandoltCOptotype } from "./LandoltCOptotype";
 import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
-import AlphaProbabilityGraph from "./AlphaProbabilityGraph";
+import AlphaProbabilityGraph, { type ProbabilityGraphDatapoint } from "./AlphaProbabilityGraph";
 import ResponseIndicator from "./ResponseIndicator";
 import ConfidenceProgress from "./ConfidenceProgress";
+import { calculateLogisticPsychometric } from "../lib/UserLogMARGuessingEngine";
 
 interface TopPanelDebugInfo {
   nextTrialLogMAR: number;
@@ -133,9 +134,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const [currentLogMAR, setCurrentLogMAR] = useState(STARTING_LOGMAR);
   const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
   const [topPanelDebugInfo, setTopPanelDebugInfo] = useState<TopPanelDebugInfo | null>(null);
-  const [alphaProbabilities, setAlphaProbabilities] = useState<
-    { logMAR: number; probability: number }[]
-  >([]);
   const [initialConfidenceWidth, setInitialConfidenceWidth] = useState<number | null>(null);
 
   // Track scores for each LogMAR value: Map<LogMAR, {attempted: number, correct: number}>
@@ -255,11 +253,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   useEffect(() => {
     if (guessingEngine) {
-      const initialProbs = Array.from(guessingEngine.getAlphaProbabilities().entries()).map(
-        ([logMAR, probability]) => ({ logMAR, probability })
-      );
-      setAlphaProbabilities(initialProbs);
-
       const { intervalLowerBound, intervalUpperBound } = guessingEngine.guessUserLogMAR();
       setInitialConfidenceWidth(intervalUpperBound - intervalLowerBound);
     }
@@ -388,9 +381,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 guessingEngine.guessUserLogMAR();
               const confidenceIntervalWidth = intervalUpperBound - intervalLowerBound;
               const nextTrialLogMAR = guessingEngine.proposeNextTrialLogMAR();
-              const currentProbs = Array.from(guessingEngine.getAlphaProbabilities().entries()).map(
-                ([logMAR, probability]) => ({ logMAR, probability })
-              );
 
               setTopPanelDebugInfo({
                 guessedLogMAR,
@@ -399,7 +389,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 nextTrialLogMAR,
                 confidenceIntervalWidth,
               });
-              setAlphaProbabilities(currentProbs);
 
               if (isCorrect) totalCorrectRef.current += 1;
               const newRow: FinalSpeechDebugRow = {
@@ -819,19 +808,64 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
           />
         </div>
       </div>
-      {alphaProbabilities.length > 0 && (
-        <div
-          style={{
-            width: "100%",
-            backgroundColor: "#f0f0f0",
-            borderTop: "2px solid #ccc",
-            zIndex: 1000,
-            height: "25vh",
-          }}
-        >
-          <AlphaProbabilityGraph data={alphaProbabilities} />
-        </div>
-      )}
+      {(() => {
+        // X values: the LogMARs from the alphaProbabilities
+        const alphaProbabilities = guessingEngine.getAlphaProbabilities();
+        const alphaLogMARs: number[] = [...alphaProbabilities.keys()];
+        return (
+          <div
+            style={{
+              width: "100%",
+              backgroundColor: "#f0f0f0",
+              borderTop: "2px solid #ccc",
+              zIndex: 1000,
+              height: "25vh",
+            }}
+          >
+            {/* Prepare data for the psychometric function line */}
+            {(() => {
+              // Get the engine's best guess at alpha and beta
+              const { guessedLogMAR, beta } = guessingEngine.guessUserLogMAR();
+              // Use the same gamma and lambda as the engine
+              const gamma = 1 / 8; // 8 Landolt C orientations
+              const lambda = UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA;
+
+              // Calculate the psychometric function at each LogMAR
+              const psychometricLine: ProbabilityGraphDatapoint[] = alphaLogMARs.map((logMAR) => ({
+                logMAR,
+                probability: calculateLogisticPsychometric(
+                  Math.floor(logMAR * 1000),
+                  Math.floor(guessedLogMAR * 1000),
+                  beta,
+                  gamma,
+                  lambda
+                ),
+              }));
+
+              console.log("Generated psychometricLine:", {
+                length: psychometricLine.length,
+                firstFew: psychometricLine.slice(0, 3),
+              });
+
+              const alphaProbabilitiesForGraph: ProbabilityGraphDatapoint[] = [];
+              alphaProbabilities.forEach((probability, logMAR) =>
+                alphaProbabilitiesForGraph.push({
+                  logMAR: logMAR,
+                  probability: probability,
+                })
+              );
+
+              // Pass both the alphaProbabilities and the psychometricLine to the graph
+              return (
+                <AlphaProbabilityGraph
+                  alphaPosteriors={alphaProbabilitiesForGraph}
+                  psychometricLine={psychometricLine}
+                />
+              );
+            })()}
+          </div>
+        );
+      })()}
     </div>
   );
 };
