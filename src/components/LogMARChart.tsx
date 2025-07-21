@@ -865,6 +865,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 <AlphaProbabilityGraph
                   alphaPosteriors={alphaProbabilitiesForGraph}
                   psychometricLine={psychometricLine}
+                  currentLogMAR={currentLogMAR} // Pass the current LogMAR value
                 />
               );
             })()}

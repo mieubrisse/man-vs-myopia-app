@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Line,
+  ReferenceLine, // Add ReferenceLine import
 } from "recharts";
 
 export type ProbabilityGraphDatapoint = {
@@ -18,11 +19,13 @@ export type ProbabilityGraphDatapoint = {
 interface AlphaProbabilityGraphProps {
   alphaPosteriors: ProbabilityGraphDatapoint[];
   psychometricLine?: ProbabilityGraphDatapoint[];
+  currentLogMAR?: number; // Add prop for the vertical line
 }
 
 const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({
   alphaPosteriors,
   psychometricLine,
+  currentLogMAR, // Accept the new prop
 }) => {
   // Merge the bar and line data for the X axis domain
   const allLogMARs = [
@@ -82,6 +85,17 @@ const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({
           isAnimationActive={false}
           connectNulls={true}
         />
+        {/* Add the vertical ReferenceLine if currentLogMAR is provided */}
+        {typeof currentLogMAR === "number" && (
+          <ReferenceLine
+            x={currentLogMAR}
+            stroke="#ef4444"
+            strokeDasharray="4 2"
+            label={{ value: `Current`, position: "top", fill: "#ef4444" }}
+            ifOverflow="extendDomain"
+            yAxisId="left"
+          />
+        )}
       </ComposedChart>
     </ResponsiveContainer>
   );
