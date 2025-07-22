@@ -104,6 +104,7 @@ const TARGET_CONFIDENCE_INTERVAL_WIDTH = 0.05;
 const HOMOPHONE_MAPPINGS: { [key: string]: string } = {
   CELL: "SOUTH",
   SELF: "SOUTH",
+  SO: "SOUTH",
   QUEST: "WEST",
   // Add more as needed
 };
@@ -866,6 +867,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                   alphaPosteriors={alphaProbabilitiesForGraph}
                   psychometricLine={psychometricLine}
                   currentLogMAR={currentLogMAR} // Pass the current LogMAR value
+                  nextTrialLogMAR={guessingEngine.proposeNextTrialLogMAR()} // Pass the next trial LogMAR value
                 />
               );
             })()}
