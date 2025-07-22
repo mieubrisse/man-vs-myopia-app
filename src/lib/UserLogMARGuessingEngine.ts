@@ -17,7 +17,8 @@ const MAXIMUM_LOGMAR_PRECISION: number = 1000;
 
   https://www.researchgate.net/publication/12066925_The_Slope_of_the_Psychometric_Function_for_Bailey-Lovie_Letter_Charts_Defocus_Effects_and_Implications_for_Modeling_Letter-By-Letter_Scores
   */
-const LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.015; // 15.0 converted for LogMAR thousandths
+// const LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.015; // 15.0 converted for LogMAR thousandths
+const LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.1; // 15.0 converted for LogMAR thousandths
 
 function normalizeVector(vector: number[]): number[] {
   const sum = vector.reduce((prevVal, curr) => prevVal + curr, 0);

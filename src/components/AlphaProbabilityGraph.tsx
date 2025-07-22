@@ -20,12 +20,14 @@ interface AlphaProbabilityGraphProps {
   alphaPosteriors: ProbabilityGraphDatapoint[];
   psychometricLine?: ProbabilityGraphDatapoint[];
   currentLogMAR?: number; // Add prop for the vertical line
+  nextTrialLogMAR?: number; // Add prop for the green line
 }
 
 const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({
   alphaPosteriors,
   psychometricLine,
   currentLogMAR, // Accept the new prop
+  nextTrialLogMAR, // Accept the new prop
 }) => {
   // Merge the bar and line data for the X axis domain
   const allLogMARs = [
@@ -92,6 +94,17 @@ const AlphaProbabilityGraph: React.FC<AlphaProbabilityGraphProps> = ({
             stroke="#ef4444"
             strokeDasharray="4 2"
             label={{ value: `Current`, position: "top", fill: "#ef4444" }}
+            ifOverflow="extendDomain"
+            yAxisId="left"
+          />
+        )}
+        {/* Add the green ReferenceLine for nextTrialLogMAR if provided */}
+        {typeof nextTrialLogMAR === "number" && (
+          <ReferenceLine
+            x={nextTrialLogMAR}
+            stroke="#22c55e"
+            strokeDasharray="4 2"
+            label={{ value: `Next Trial`, position: "top", fill: "#22c55e" }}
             ifOverflow="extendDomain"
             yAxisId="left"
           />
