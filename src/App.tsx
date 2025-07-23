@@ -45,13 +45,15 @@ function createNormalPriors(
 ): Map<number, number> {
   const priors = new Map<number, number>();
   
-  // Generate LogMAR values using integer arithmetic to avoid floating point errors
-  const minSteps = Math.round(minLogMAR / stepSize);
-  const maxSteps = Math.round(maxLogMAR / stepSize);
+  // Generate LogMAR values using pure integer arithmetic to avoid floating point errors
+  // Work with thousandths internally to match engine precision requirements
+  const stepSizeThousandths = Math.round(stepSize * 1000);
+  const minLogMARThousandths = Math.round(minLogMAR * 1000);
+  const maxLogMARThousandths = Math.round(maxLogMAR * 1000);
   const logMARValues: number[] = [];
   
-  for (let stepIndex = minSteps; stepIndex <= maxSteps; stepIndex++) {
-    const logMAR = stepIndex * stepSize;
+  for (let logMARTh = minLogMARThousandths; logMARTh <= maxLogMARThousandths; logMARTh += stepSizeThousandths) {
+    const logMAR = logMARTh / 1000;  // Convert back to decimal only at the end
     logMARValues.push(logMAR);
   }
   
@@ -111,13 +113,15 @@ const createGuessingEngine = (): UserLogMARGuessingEngine => {
     // Use uniform prior as before
     alphaPriors = new Map<number, number>();
     
-    // Generate LogMAR values using integer arithmetic to avoid floating point errors
-    const minSteps = Math.round(LOGMAR_CONFIG.MIN_LOGMAR / LOGMAR_CONFIG.STEP_SIZE);
-    const maxSteps = Math.round(LOGMAR_CONFIG.MAX_LOGMAR / LOGMAR_CONFIG.STEP_SIZE);
+    // Generate LogMAR values using pure integer arithmetic to avoid floating point errors
+    // Work with thousandths internally to match engine precision requirements
+    const stepSizeThousandths = Math.round(LOGMAR_CONFIG.STEP_SIZE * 1000);
+    const minLogMARThousandths = Math.round(LOGMAR_CONFIG.MIN_LOGMAR * 1000);
+    const maxLogMARThousandths = Math.round(LOGMAR_CONFIG.MAX_LOGMAR * 1000);
     const logMARValues: number[] = [];
     
-    for (let stepIndex = minSteps; stepIndex <= maxSteps; stepIndex++) {
-      const logMAR = stepIndex * LOGMAR_CONFIG.STEP_SIZE;
+    for (let logMARTh = minLogMARThousandths; logMARTh <= maxLogMARThousandths; logMARTh += stepSizeThousandths) {
+      const logMAR = logMARTh / 1000;  // Convert back to decimal only at the end
       logMARValues.push(logMAR);
     }
     
