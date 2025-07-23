@@ -271,19 +271,12 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
     const finalLogMARScore = guessingEngine.guessUserLogMAR().guessedLogMAR;
 
-    // Save to Chrome storage
-    if (chrome && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({
-        leftEyeLogMAR: finalLogMARScore
-      }, () => {
-        if (chrome.runtime.lastError) {
-          console.error('Error saving LogMAR to Chrome storage:', chrome.runtime.lastError);
-        } else {
-          console.log('LogMAR saved to Chrome storage:', finalLogMARScore);
-        }
-      });
-    } else {
-      console.log('Chrome storage not available, LogMAR not saved:', finalLogMARScore);
+    // Save to localStorage
+    try {
+      localStorage.setItem('leftEyeLogMAR', finalLogMARScore.toString());
+      console.log('LogMAR saved to localStorage:', finalLogMARScore);
+    } catch (error) {
+      console.error('Error saving LogMAR to localStorage:', error);
     }
 
     onAssessmentComplete?.({

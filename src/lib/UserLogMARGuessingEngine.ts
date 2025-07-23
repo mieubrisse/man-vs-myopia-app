@@ -25,6 +25,50 @@ function normalizeVector(vector: number[]): number[] {
   return sum ? vector.map((val) => val / sum) : vector;
 }
 
+/**
+ * Creates a normal distribution centered around a previous LogMAR value.
+ * Used to initialize priors when the user has a previously stored LogMAR score.
+ * 
+ * @param centerLogMAR The LogMAR value to center the distribution around
+ * @param standardDeviation The standard deviation of the normal distribution
+ * @param minLogMAR The minimum LogMAR value to include
+ * @param maxLogMAR The maximum LogMAR value to include
+ * @param stepSize The step size between LogMAR values
+ * @returns A Map of LogMAR values to their normalized probabilities
+ */
+export function createNormalPriors(
+  centerLogMAR: number,
+  standardDeviation: number,
+  minLogMAR: number,
+  maxLogMAR: number,
+  stepSize: number
+): Map<number, number> {
+  const priors = new Map<number, number>();
+  
+  // Generate LogMAR values from min to max with the specified step size
+  const logMARValues: number[] = [];
+  for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += stepSize) {
+    // Round to avoid floating point precision issues
+    logMARValues.push(Math.round(logMAR / stepSize) * stepSize);
+  }
+  
+  // Calculate normal distribution probabilities
+  const unnormalizedProbabilities: number[] = logMARValues.map(logMAR => {
+    const exponent = -0.5 * Math.pow((logMAR - centerLogMAR) / standardDeviation, 2);
+    return Math.exp(exponent);
+  });
+  
+  // Normalize probabilities
+  const normalizedProbabilities = normalizeVector(unnormalizedProbabilities);
+  
+  // Create the Map
+  for (let i = 0; i < logMARValues.length; i++) {
+    priors.set(logMARValues[i], normalizedProbabilities[i]);
+  }
+  
+  return priors;
+}
+
 // See https://en.wikipedia.org/wiki/Entropy_(information_theory)
 export function calculateShannonEntropy(probabilities: number[]): number {
   const totalEntropy = probabilities.reduce((totalEntropy, probability) => {
