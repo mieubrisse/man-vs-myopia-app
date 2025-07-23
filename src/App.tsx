@@ -58,11 +58,14 @@ const createGuessingEngine = (): UserLogMARGuessingEngine => {
     // Use uniform prior as before
     alphaPriors = new Map<number, number>();
     
-    // Generate properly rounded LogMAR values
+    // Generate LogMAR values using integer arithmetic to avoid floating point errors
+    const minSteps = Math.round(LOGMAR_CONFIG.MIN_LOGMAR / LOGMAR_CONFIG.STEP_SIZE);
+    const maxSteps = Math.round(LOGMAR_CONFIG.MAX_LOGMAR / LOGMAR_CONFIG.STEP_SIZE);
     const logMARValues: number[] = [];
-    for (let logMAR = LOGMAR_CONFIG.MIN_LOGMAR; logMAR <= LOGMAR_CONFIG.MAX_LOGMAR; logMAR += LOGMAR_CONFIG.STEP_SIZE) {
-      const roundedLogMAR = Math.round(logMAR / LOGMAR_CONFIG.STEP_SIZE) * LOGMAR_CONFIG.STEP_SIZE;
-      logMARValues.push(roundedLogMAR);
+    
+    for (let stepIndex = minSteps; stepIndex <= maxSteps; stepIndex++) {
+      const logMAR = stepIndex * LOGMAR_CONFIG.STEP_SIZE;
+      logMARValues.push(logMAR);
     }
     
     const probability = 1 / logMARValues.length;
