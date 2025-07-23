@@ -127,12 +127,14 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     "NORTHWEST",
   ];
   const NUM_LETTERS_PER_LINE = 3;
-  const STARTING_LOGMAR = 0.4;
+
+  // Get optimal starting LogMAR from the guessing engine
+  const startingLogMAR = guessingEngine.proposeNextTrialLogMAR();
 
   // Only keep state for the current row's letters and their statuses
   const [currentRowLetters, setCurrentRowLetters] = useState<LetterState[]>([]);
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
-  const [currentLogMAR, setCurrentLogMAR] = useState(STARTING_LOGMAR);
+  const [currentLogMAR, setCurrentLogMAR] = useState(startingLogMAR);
   const [isAssessmentFinished, setIsAssessmentFinished] = useState(false);
   const [topPanelDebugInfo, setTopPanelDebugInfo] = useState<TopPanelDebugInfo | null>(null);
   const [initialConfidenceWidth, setInitialConfidenceWidth] = useState<number | null>(null);
@@ -145,7 +147,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   // Speech recognition state
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const currentLetterIndexRef = useRef<number>(0);
-  const currentLogMARRef = useRef<number>(STARTING_LOGMAR);
+  const currentLogMARRef = useRef<number>(startingLogMAR);
   const isAssessmentFinishedRef = useRef<boolean>(false);
   const speechEventCounterRef = useRef<number>(1);
 
@@ -241,7 +243,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       return prev;
     });
     setCurrentLetterIndex(0);
-    setCurrentLogMAR(STARTING_LOGMAR);
+    setCurrentLogMAR(startingLogMAR);
     setIsAssessmentFinished(false);
   }, [generateRowLetters]);
 
