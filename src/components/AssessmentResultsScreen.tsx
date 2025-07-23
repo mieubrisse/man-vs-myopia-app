@@ -45,7 +45,7 @@ const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
           <div className="score-section">
             <h2>LogMAR Score</h2>
             <div className="logmar-score" style={{ color: visionColor }}>
-              {logMARScore.toFixed(2)}
+              {logMARScore.toFixed(3)}
             </div>
             <div className="vision-level" style={{ color: visionColor }}>
               {visionLevel}
