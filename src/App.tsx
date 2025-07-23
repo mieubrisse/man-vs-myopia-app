@@ -7,7 +7,7 @@ import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScree
 import ViewingConfigurationSelectionScreen from "./components/ViewingConfigurationSelectionScreen";
 import AssessmentResultsScreen from "./components/AssessmentResultsScreen";
 import LandoltCTestScreen from "./components/LandoltCTestScreen";
-import { UserLogMARGuessingEngine, createNormalPriors } from "./lib/UserLogMARGuessingEngine";
+import { UserLogMARGuessingEngine } from "./lib/UserLogMARGuessingEngine";
 import { orientationToRotation } from "./components/LandoltCOptotype";
 
 // LogMAR engine configuration constants
@@ -18,6 +18,59 @@ const LOGMAR_CONFIG = {
   CONFIDENCE_INTERVAL: 0.95,
   NORMAL_PRIOR_STANDARD_DEVIATION: 0.2,
 } as const;
+
+// Helper function to normalize a vector of probabilities
+function normalizeVector(vector: number[]): number[] {
+  const sum = vector.reduce((prevVal, curr) => prevVal + curr, 0);
+  return sum ? vector.map((val) => val / sum) : vector;
+}
+
+/**
+ * Creates a normal distribution centered around a previous LogMAR value.
+ * Used to initialize priors when the user has a previously stored LogMAR score.
+ * 
+ * @param centerLogMAR The LogMAR value to center the distribution around
+ * @param standardDeviation The standard deviation of the normal distribution
+ * @param minLogMAR The minimum LogMAR value to include
+ * @param maxLogMAR The maximum LogMAR value to include
+ * @param stepSize The step size between LogMAR values
+ * @returns A Map of LogMAR values to their normalized probabilities
+ */
+function createNormalPriors(
+  centerLogMAR: number,
+  standardDeviation: number,
+  minLogMAR: number,
+  maxLogMAR: number,
+  stepSize: number
+): Map<number, number> {
+  const priors = new Map<number, number>();
+  
+  // Generate LogMAR values using integer arithmetic to avoid floating point errors
+  const minSteps = Math.round(minLogMAR / stepSize);
+  const maxSteps = Math.round(maxLogMAR / stepSize);
+  const logMARValues: number[] = [];
+  
+  for (let stepIndex = minSteps; stepIndex <= maxSteps; stepIndex++) {
+    const logMAR = stepIndex * stepSize;
+    logMARValues.push(logMAR);
+  }
+  
+  // Calculate normal distribution probabilities
+  const unnormalizedProbabilities: number[] = logMARValues.map(logMAR => {
+    const exponent = -0.5 * Math.pow((logMAR - centerLogMAR) / standardDeviation, 2);
+    return Math.exp(exponent);
+  });
+  
+  // Normalize probabilities
+  const normalizedProbabilities = normalizeVector(unnormalizedProbabilities);
+  
+  // Create the Map
+  for (let i = 0; i < logMARValues.length; i++) {
+    priors.set(logMARValues[i], normalizedProbabilities[i]);
+  }
+  
+  return priors;
+}
 
 type AppScreen =
   | "home"
