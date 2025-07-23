@@ -144,8 +144,7 @@ const App: React.FC = () => {
     setGuessingEngine(createGuessingEngine());
   }, []);
   const [calibrationData, setCalibrationData] = useState<{
-    measuredHeightPx: number;
-    measuredHeightCm: number;
+    pixelsPerCm: number;
   } | null>(null);
   const [selectedViewingConfiguration, setSelectedViewingConfiguration] = useState<{
     id: string;
@@ -176,14 +175,11 @@ const App: React.FC = () => {
     localStorage.setItem("lastSelectedViewingConfigurationId", configuration.id);
 
     // Get calibration data from localStorage
-    const fontHeightCm = localStorage.getItem("fontHeightCm");
-    if (fontHeightCm) {
-      const measuredHeightCm = parseFloat(fontHeightCm);
-      const measuredHeightPx = window.innerWidth > 600 ? 600 : 300; // 600px on desktop, 300px on mobile
-
+    const pixelsPerCmString = localStorage.getItem("pixelsPerCm");
+    if (pixelsPerCmString) {
+      const pixelsPerCm = parseFloat(pixelsPerCmString);
       setCalibrationData({
-        measuredHeightPx,
-        measuredHeightCm,
+        pixelsPerCm,
       });
     }
 

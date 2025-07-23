@@ -21,8 +21,7 @@ interface LetterState {
 }
 
 interface CalibrationData {
-  measuredHeightPx: number;
-  measuredHeightCm: number;
+  pixelsPerCm: number;
 }
 
 interface ViewingConfiguration {
@@ -505,8 +504,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
     if (calibrationData) {
       console.log("Font Size Calibration:");
-      console.log("  - Measured height (px):", calibrationData.measuredHeightPx);
-      console.log("  - Measured height (cm):", calibrationData.measuredHeightCm);
+      console.log("  - Pixels per cm:", calibrationData.pixelsPerCm);
     } else {
       console.log("Font Size Calibration: Not available");
     }
@@ -529,14 +527,11 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       return null;
     }
 
-    // Convert calibration data: measuredHeightPx = measuredHeightCm
-    const pixelsPerCm = calibrationData.measuredHeightPx / calibrationData.measuredHeightCm;
-
-    // Calculate size for the current LogMAR level
+    // Calculate size for the current LogMAR level using pixels per cm directly
     const letterSizePx = calculateLetterPixelSizeForLogMAR(
       currentLogMAR,
       viewingConfiguration.distanceCentimeters,
-      pixelsPerCm
+      calibrationData.pixelsPerCm
     );
 
     return letterSizePx;
