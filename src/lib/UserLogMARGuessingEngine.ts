@@ -45,11 +45,14 @@ export function createNormalPriors(
 ): Map<number, number> {
   const priors = new Map<number, number>();
   
-  // Generate LogMAR values from min to max with the specified step size
+  // Generate LogMAR values using integer arithmetic to avoid floating point errors
+  const minSteps = Math.round(minLogMAR / stepSize);
+  const maxSteps = Math.round(maxLogMAR / stepSize);
   const logMARValues: number[] = [];
-  for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += stepSize) {
-    // Round to avoid floating point precision issues
-    logMARValues.push(Math.round(logMAR / stepSize) * stepSize);
+  
+  for (let stepIndex = minSteps; stepIndex <= maxSteps; stepIndex++) {
+    const logMAR = stepIndex * stepSize;
+    logMARValues.push(logMAR);
   }
   
   // Calculate normal distribution probabilities
