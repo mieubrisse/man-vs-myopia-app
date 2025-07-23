@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 import LogMARChart from "./components/LogMARChart";
 import CalibrationScreen from "./components/CalibrationScreen";
@@ -7,8 +7,17 @@ import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScree
 import ViewingConfigurationSelectionScreen from "./components/ViewingConfigurationSelectionScreen";
 import AssessmentResultsScreen from "./components/AssessmentResultsScreen";
 import LandoltCTestScreen from "./components/LandoltCTestScreen";
-import { UserLogMARGuessingEngine } from "./lib/UserLogMARGuessingEngine";
+import { UserLogMARGuessingEngine, createNormalPriors } from "./lib/UserLogMARGuessingEngine";
 import { orientationToRotation } from "./components/LandoltCOptotype";
+
+// LogMAR engine configuration constants
+const LOGMAR_CONFIG = {
+  MIN_LOGMAR: -1.0,
+  MAX_LOGMAR: 1.2,
+  STEP_SIZE: 0.01,
+  CONFIDENCE_INTERVAL: 0.95,
+  NORMAL_PRIOR_STANDARD_DEVIATION: 0.2,
+} as const;
 
 type AppScreen =
   | "home"
@@ -19,32 +28,61 @@ type AppScreen =
   | "assessmentResults"
   | "landoltCTest";
 
+// Factory function to create a guessing engine, automatically reading from localStorage
+const createGuessingEngine = (): UserLogMARGuessingEngine => {
+  const numDistinctOptotypes = Object.keys(orientationToRotation).length; // Landolt C has 8 orientations
+  
+  // Check localStorage for previous LogMAR
+  let storedLogMAR: number | null = null;
+  try {
+    const storedLogMARString = localStorage.getItem('leftEyeLogMAR');
+    storedLogMAR = storedLogMARString ? parseFloat(storedLogMARString) : null;
+    console.log('Retrieved from localStorage:', storedLogMARString, '-> parsed:', storedLogMAR);
+  } catch (error) {
+    console.error('Error retrieving LogMAR from localStorage:', error);
+  }
+
+  let alphaPriors: Map<number, number>;
+
+  if (storedLogMAR !== null) {
+    // Use normal distribution centered on previous LogMAR
+    alphaPriors = createNormalPriors(
+      storedLogMAR, 
+      LOGMAR_CONFIG.NORMAL_PRIOR_STANDARD_DEVIATION, 
+      LOGMAR_CONFIG.MIN_LOGMAR, 
+      LOGMAR_CONFIG.MAX_LOGMAR, 
+      LOGMAR_CONFIG.STEP_SIZE
+    );
+    console.log('Initialized with normal priors centered at stored LogMAR:', storedLogMAR);
+  } else {
+    // Use uniform prior as before
+    alphaPriors = new Map<number, number>();
+    
+    // Generate properly rounded LogMAR values
+    const logMARValues: number[] = [];
+    for (let logMAR = LOGMAR_CONFIG.MIN_LOGMAR; logMAR <= LOGMAR_CONFIG.MAX_LOGMAR; logMAR += LOGMAR_CONFIG.STEP_SIZE) {
+      const roundedLogMAR = Math.round(logMAR / LOGMAR_CONFIG.STEP_SIZE) * LOGMAR_CONFIG.STEP_SIZE;
+      logMARValues.push(roundedLogMAR);
+    }
+    
+    const probability = 1 / logMARValues.length;
+    for (const logMAR of logMARValues) {
+      alphaPriors.set(logMAR, probability);
+    }
+    console.log('Initialized with uniform priors (no stored LogMAR found)');
+  }
+
+  return new UserLogMARGuessingEngine(alphaPriors, numDistinctOptotypes, LOGMAR_CONFIG.CONFIDENCE_INTERVAL);
+};
+
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
-  const [guessingEngine] = useState(() => {
-    const alphaPriors = new Map<number, number>();
-    const minLogMAR = -1.0;
-    const maxLogMAR = 1.2;
-    const step = 0.01;
+  const [guessingEngine, setGuessingEngine] = useState<UserLogMARGuessingEngine | null>(null);
 
-    // A uniform prior
-    let totalEntries = 0;
-    for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
-      totalEntries++;
-    }
-    const probability = 1 / totalEntries;
-
-    for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
-      // Round to avoid floating point issues
-      const roundedLogMAR = Math.round(logMAR * 1000) / 1000;
-      alphaPriors.set(roundedLogMAR, probability);
-    }
-
-    const numDistinctOptotypes = Object.keys(orientationToRotation).length; // Landolt C has 8 orientations
-    const confidenceInterval = 0.95; // 95% confidence
-
-    return new UserLogMARGuessingEngine(alphaPriors, numDistinctOptotypes, confidenceInterval);
-  });
+  // Initialize guessingEngine with stored LogMAR if available
+  useEffect(() => {
+    setGuessingEngine(createGuessingEngine());
+  }, []);
   const [calibrationData, setCalibrationData] = useState<{
     measuredHeightPx: number;
     measuredHeightCm: number;
@@ -88,6 +126,9 @@ const App: React.FC = () => {
         measuredHeightCm,
       });
     }
+
+    // Reinitialize guessing engine with latest localStorage data
+    setGuessingEngine(createGuessingEngine());
 
     setCurrentScreen("assessment");
   };
@@ -150,6 +191,10 @@ const App: React.FC = () => {
   }
 
   if (currentScreen === "assessment") {
+    if (!guessingEngine) {
+      return <div>Loading assessment...</div>;
+    }
+    
     return (
       <LogMARChart
         calibrationData={calibrationData}
