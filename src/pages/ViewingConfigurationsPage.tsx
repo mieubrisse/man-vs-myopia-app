@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import "./ViewingConfigurationsScreen.css";
+import { useNavigate } from "react-router-dom";
+import "./ViewingConfigurationsPage.css";
+import { ROUTES } from "../lib/routes";
 
 interface ViewingConfiguration {
   id: string;
@@ -7,13 +9,8 @@ interface ViewingConfiguration {
   distanceCentimeters: number;
 }
 
-interface ViewingConfigurationsScreenProps {
-  onGoHome: () => void;
-}
-
-const ViewingConfigurationsScreen: React.FC<
-  ViewingConfigurationsScreenProps
-> = ({ onGoHome }) => {
+const ViewingConfigurationsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [configurations, setConfigurations] = useState<ViewingConfiguration[]>(
     []
   );
@@ -98,7 +95,7 @@ const ViewingConfigurationsScreen: React.FC<
   return (
     <div className="viewing-configurations-screen">
       <div className="home-link">
-        <button onClick={onGoHome} className="home-link-button">
+        <button onClick={() => navigate(ROUTES.HOME)} className="home-link-button">
           ← Home
         </button>
       </div>
@@ -191,4 +188,4 @@ const ViewingConfigurationsScreen: React.FC<
   );
 };
 
-export default ViewingConfigurationsScreen;
+export default ViewingConfigurationsPage;

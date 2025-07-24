@@ -1,21 +1,12 @@
 import React, { useState, useEffect } from "react";
-import "./HomeScreen.css";
+import { useNavigate } from "react-router-dom";
+import "./HomePage.css";
 import { EyeDataStorage } from "../lib/EyeDataStorage";
 import type { EyeLogMARData } from "../lib/EyeDataStorage";
+import { ROUTES } from "../lib/routes";
 
-interface HomeScreenProps {
-  onStartCalibration: () => void;
-  onStartAssessment: () => void;
-  onViewConfigurations: () => void;
-  onShowLandoltCTest: () => void;
-}
-
-const HomeScreen: React.FC<HomeScreenProps> = ({
-  onStartCalibration,
-  onStartAssessment,
-  onViewConfigurations,
-  onShowLandoltCTest,
-}) => {
+const HomePage: React.FC = () => {
+  const navigate = useNavigate();
   const [hasCalibration, setHasCalibration] = useState(false);
   const [hasViewingConfigurations, setHasViewingConfigurations] =
     useState(false);
@@ -48,7 +39,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const handleStartAssessment = () => {
     if (hasCalibration && hasViewingConfigurations) {
-      onStartAssessment();
+      navigate(ROUTES.ASSESSMENT);
     }
   };
 
@@ -109,7 +100,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="home-options">
           <button
             className="home-option calibration-option"
-            onClick={onStartCalibration}
+            onClick={() => navigate(ROUTES.CALIBRATION)}
           >
             <div className="option-icon">📏</div>
             <div className="option-content">
@@ -122,7 +113,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
           <button
             className="home-option configurations-option"
-            onClick={onViewConfigurations}
+            onClick={() => navigate(ROUTES.VIEWING_CONFIGURATIONS)}
           >
             <div className="option-icon">⚙️</div>
             <div className="option-content">
@@ -154,7 +145,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
           <button
             className="home-option landolt-c-test-option"
-            onClick={onShowLandoltCTest}
+            onClick={() => navigate(ROUTES.LANDOLT_C_TEST)}
           >
             <div className="option-icon">⭕</div>
             <div className="option-content">
@@ -168,4 +159,4 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   );
 };
 
-export default HomeScreen;
+export default HomePage;
