@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
-import "./CalibrationScreen.css";
-
-interface CalibrationScreenProps {
-  onGoHome: () => void;
-}
+import { useNavigate } from "react-router-dom";
+import "./CalibrationPage.css";
+import { ROUTES } from "../lib/routes";
 
 // TODO Contemplate using a credit card-sizing algorithm like myeyes.ai
 
-const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
+const CalibrationPage: React.FC = () => {
+  const navigate = useNavigate();
   const [heightCm, setHeightCm] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [hasExistingCalibration, setHasExistingCalibration] = useState(false);
@@ -74,7 +73,7 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
       )}
 
       <div className="home-link">
-        <button onClick={onGoHome} className="home-link-button">
+        <button onClick={() => navigate(ROUTES.HOME)} className="home-link-button">
           ← Home
         </button>
       </div>
@@ -146,4 +145,4 @@ const CalibrationScreen: React.FC<CalibrationScreenProps> = ({ onGoHome }) => {
   );
 };
 
-export default CalibrationScreen;
+export default CalibrationPage;
