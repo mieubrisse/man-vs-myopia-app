@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./HomeScreen.css";
+import { EyeDataStorage } from "../lib/EyeDataStorage";
+import type { EyeLogMARData } from "../lib/EyeDataStorage";
 
 interface HomeScreenProps {
   onStartCalibration: () => void;
@@ -17,6 +19,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const [hasCalibration, setHasCalibration] = useState(false);
   const [hasViewingConfigurations, setHasViewingConfigurations] =
     useState(false);
+  const [leftEyeData, setLeftEyeData] = useState<EyeLogMARData | null>(null);
+  const [rightEyeData, setRightEyeData] = useState<EyeLogMARData | null>(null);
 
   // Check for existing calibration and viewing configurations on component mount
   useEffect(() => {
@@ -34,6 +38,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     } else {
       setHasViewingConfigurations(false);
     }
+
+    // Load recent eye data
+    const leftData = EyeDataStorage.getEyeData('left');
+    const rightData = EyeDataStorage.getEyeData('right');
+    setLeftEyeData(leftData.length > 0 ? leftData[0] : null);
+    setRightEyeData(rightData.length > 0 ? rightData[0] : null);
   }, []);
 
   const handleStartAssessment = () => {
@@ -48,6 +58,29 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   if (!hasViewingConfigurations)
     missingRequirements.push("viewing configuration");
 
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString();
+  };
+
+  const renderEyeResult = (eyeData: EyeLogMARData | null, eyeName: string) => {
+    if (!eyeData) {
+      return (
+        <div className="eye-result">
+          <h4>{eyeName} Eye</h4>
+          <p className="no-data">No recent data</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="eye-result">
+        <h4>{eyeName} Eye</h4>
+        <div className="logmar-value">{eyeData.logMARScore.toFixed(3)}</div>
+        <div className="test-date">{formatDate(eyeData.timestamp)}</div>
+      </div>
+    );
+  };
+
   return (
     <div className="home-screen">
       <div className="home-container">
@@ -56,6 +89,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           Welcome to the LogMAR vision assessment tool. Please choose an option
           below.
         </p>
+
+        {/* Recent Assessment Results */}
+        {(leftEyeData || rightEyeData) && (
+          <div className="recent-results">
+            <h2>Recent Assessment Results</h2>
+            <div className="eyes-results" style={{ 
+              display: 'flex', 
+              gap: '2rem', 
+              justifyContent: 'center',
+              marginBottom: '2rem' 
+            }}>
+              {renderEyeResult(leftEyeData, "Left")}
+              {renderEyeResult(rightEyeData, "Right")}
+            </div>
+          </div>
+        )}
 
         <div className="home-options">
           <button

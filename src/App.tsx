@@ -7,8 +7,11 @@ import ViewingConfigurationsScreen from "./components/ViewingConfigurationsScree
 import ViewingConfigurationSelectionScreen from "./components/ViewingConfigurationSelectionScreen";
 import AssessmentResultsScreen from "./components/AssessmentResultsScreen";
 import LandoltCTestScreen from "./components/LandoltCTestScreen";
+import EyeAssessmentWorkflow from "./components/EyeAssessmentWorkflow";
 import { UserLogMARGuessingEngine } from "./lib/UserLogMARGuessingEngine";
 import { orientationToRotation } from "./components/LandoltCOptotype";
+import { EyeDataStorage } from "./lib/EyeDataStorage";
+import type { Eye, EyeLogMARData } from "./lib/EyeDataStorage";
 
 // LogMAR engine configuration constants
 const LOGMAR_CONFIG = {
@@ -83,18 +86,20 @@ type AppScreen =
   | "assessmentResults"
   | "landoltCTest";
 
-// Factory function to create a guessing engine, automatically reading from localStorage
-const createGuessingEngine = (): UserLogMARGuessingEngine => {
+// Factory function to create a guessing engine for a specific eye
+const createGuessingEngine = (eye: Eye): UserLogMARGuessingEngine => {
   const numDistinctOptotypes = Object.keys(orientationToRotation).length; // Landolt C has 8 orientations
   
-  // Check localStorage for previous LogMAR
+  // Check for previous LogMAR data for this eye
   let storedLogMAR: number | null = null;
   try {
-    const storedLogMARString = localStorage.getItem('leftEyeLogMAR');
-    storedLogMAR = storedLogMARString ? parseFloat(storedLogMARString) : null;
-    console.log('Retrieved from localStorage:', storedLogMARString, '-> parsed:', storedLogMAR);
+    const eyeData = EyeDataStorage.getEyeData(eye);
+    if (eyeData.length > 0) {
+      storedLogMAR = eyeData[0].logMARScore; // Most recent is first
+      console.log(`Retrieved ${eye} eye LogMAR from storage:`, storedLogMAR);
+    }
   } catch (error) {
-    console.error('Error retrieving LogMAR from localStorage:', error);
+    console.error(`Error retrieving ${eye} eye LogMAR from storage:`, error);
   }
 
   let alphaPriors: Map<number, number>;
@@ -137,12 +142,6 @@ const createGuessingEngine = (): UserLogMARGuessingEngine => {
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("home");
-  const [guessingEngine, setGuessingEngine] = useState<UserLogMARGuessingEngine | null>(null);
-
-  // Initialize guessingEngine with stored LogMAR if available
-  useEffect(() => {
-    setGuessingEngine(createGuessingEngine());
-  }, []);
   const [calibrationData, setCalibrationData] = useState<{
     pixelsPerCm: number;
   } | null>(null);
@@ -152,10 +151,8 @@ const App: React.FC = () => {
     distanceCentimeters: number;
   } | null>(null);
   const [assessmentResults, setAssessmentResults] = useState<{
-    logMARScore: number;
-    correctLetters: number;
-    totalLetters: number;
-    attemptedLetters: number;
+    leftEye: EyeLogMARData | null;
+    rightEye: EyeLogMARData | null;
   } | null>(null);
 
   const handleStartCalibration = () => {
@@ -183,9 +180,6 @@ const App: React.FC = () => {
       });
     }
 
-    // Reinitialize guessing engine with latest localStorage data
-    setGuessingEngine(createGuessingEngine());
-
     setCurrentScreen("assessment");
   };
 
@@ -198,10 +192,8 @@ const App: React.FC = () => {
   };
 
   const handleAssessmentComplete = (results: {
-    logMARScore: number;
-    correctLetters: number;
-    totalLetters: number;
-    attemptedLetters: number;
+    leftEye: EyeLogMARData | null;
+    rightEye: EyeLogMARData | null;
   }) => {
     setAssessmentResults(results);
     setCurrentScreen("assessmentResults");
@@ -239,24 +231,18 @@ const App: React.FC = () => {
     return (
       <AssessmentResultsScreen
         onGoHome={handleGoHome}
-        logMARScore={assessmentResults?.logMARScore || 0}
-        correctLetters={assessmentResults?.correctLetters || 0}
-        attemptedLetters={assessmentResults?.attemptedLetters || 0}
+        results={assessmentResults}
       />
     );
   }
 
   if (currentScreen === "assessment") {
-    if (!guessingEngine) {
-      return <div>Loading assessment...</div>;
-    }
-    
     return (
-      <LogMARChart
+      <EyeAssessmentWorkflow
         calibrationData={calibrationData}
         viewingConfiguration={selectedViewingConfiguration}
-        onAssessmentComplete={handleAssessmentComplete}
-        guessingEngine={guessingEngine}
+        onWorkflowComplete={handleAssessmentComplete}
+        createGuessingEngine={createGuessingEngine}
       />
     );
   }

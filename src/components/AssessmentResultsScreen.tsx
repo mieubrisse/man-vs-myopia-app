@@ -1,18 +1,18 @@
 import React from "react";
 import "./AssessmentResultsScreen.css";
+import type { EyeLogMARData } from "../lib/EyeDataStorage";
 
 interface AssessmentResultsScreenProps {
   onGoHome: () => void;
-  logMARScore: number;
-  correctLetters: number;
-  attemptedLetters: number;
+  results: {
+    leftEye: EyeLogMARData | null;
+    rightEye: EyeLogMARData | null;
+  } | null;
 }
 
 const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
   onGoHome,
-  logMARScore,
-  correctLetters,
-  attemptedLetters,
+  results,
 }) => {
   const getVisionLevel = (score: number): string => {
     if (score <= 0.0) return "Excellent";
@@ -30,38 +30,59 @@ const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
     return "#dc3545"; // Red
   };
 
-  const visionLevel = getVisionLevel(logMARScore);
-  const visionColor = getVisionColor(logMARScore);
+  const renderEyeResults = (eyeData: EyeLogMARData | null, eyeName: string) => {
+    if (!eyeData) {
+      return (
+        <div className="eye-results">
+          <h3>{eyeName} Eye</h3>
+          <p>No data available</p>
+        </div>
+      );
+    }
+
+    const visionLevel = getVisionLevel(eyeData.logMARScore);
+    const visionColor = getVisionColor(eyeData.logMARScore);
+
+    return (
+      <div className="eye-results">
+        <h3>{eyeName} Eye</h3>
+        <div className="logmar-score" style={{ color: visionColor }}>
+          {eyeData.logMARScore.toFixed(3)}
+        </div>
+        <div className="vision-level" style={{ color: visionColor }}>
+          {visionLevel}
+        </div>
+        <div className="eye-details">
+          <div className="detail-row">
+            <span className="detail-label">Letters Correct:</span>
+            <span className="detail-value">{eyeData.correctLetters}</span>
+          </div>
+          <div className="detail-row">
+            <span className="detail-label">Letters Attempted:</span>
+            <span className="detail-value">{eyeData.attemptedLetters}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="assessment-results-screen">
       <div className="results-container">
         <h1>Assessment Complete</h1>
         <p className="results-description">
-          Your LogMAR vision assessment results are below.
+          Your LogMAR vision assessment results for both eyes are below.
         </p>
 
         <div className="results-card">
-          <div className="score-section">
-            <h2>LogMAR Score</h2>
-            <div className="logmar-score" style={{ color: visionColor }}>
-              {logMARScore.toFixed(3)}
-            </div>
-            <div className="vision-level" style={{ color: visionColor }}>
-              {visionLevel}
-            </div>
-          </div>
-
-          <div className="details-section">
-            <h3>Assessment Details</h3>
-            <div className="detail-row">
-              <span className="detail-label">Letters Correct:</span>
-              <span className="detail-value">{correctLetters}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Letters Attempted:</span>
-              <span className="detail-value">{attemptedLetters}</span>
-            </div>
+          <div className="eyes-results-container" style={{ 
+            display: 'flex', 
+            gap: '2rem', 
+            justifyContent: 'space-around',
+            flexWrap: 'wrap' 
+          }}>
+            {renderEyeResults(results?.leftEye || null, "Left")}
+            {renderEyeResults(results?.rightEye || null, "Right")}
           </div>
         </div>
 

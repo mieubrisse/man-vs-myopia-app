@@ -6,6 +6,7 @@ import AlphaProbabilityGraph, { type ProbabilityGraphDatapoint } from "./AlphaPr
 import ResponseIndicator from "./ResponseIndicator";
 import ConfidenceProgress from "./ConfidenceProgress";
 import { calculateLogisticPsychometric } from "../lib/UserLogMARGuessingEngine";
+import type { Eye } from "../lib/EyeDataStorage";
 
 interface TopPanelDebugInfo {
   nextTrialLogMAR: number;
@@ -48,6 +49,7 @@ interface LogMARChartProps {
   calibrationData?: CalibrationData | null;
   viewingConfiguration?: ViewingConfiguration | null;
   guessingEngine: UserLogMARGuessingEngine;
+  currentEye: Eye;
   onAssessmentComplete?: (results: {
     logMARScore: number;
     correctLetters: number;
@@ -114,6 +116,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   viewingConfiguration,
   onAssessmentComplete,
   guessingEngine,
+  currentEye,
 }) => {
   const LANDOLT_C_ORIENTATIONS = [
     "NORTH",
@@ -271,14 +274,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
     }
 
     const finalLogMARScore = guessingEngine.guessUserLogMAR().guessedLogMAR;
-
-    // Save to localStorage
-    try {
-      localStorage.setItem('leftEyeLogMAR', finalLogMARScore.toString());
-      console.log('LogMAR saved to localStorage:', finalLogMARScore);
-    } catch (error) {
-      console.error('Error saving LogMAR to localStorage:', error);
-    }
 
     onAssessmentComplete?.({
       logMARScore: finalLogMARScore,
