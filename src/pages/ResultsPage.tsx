@@ -2,17 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./ResultsPage.css";
 import { EyeDataStorage } from "../lib/EyeDataStorage";
-import type { EyeLogMARData } from "../lib/EyeDataStorage";
+import type { VisionTest } from "../lib/EyeDataStorage";
 import { ROUTES } from "../lib/routes";
 
 const ResultsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [leftEyeData, setLeftEyeData] = useState<EyeLogMARData[]>([]);
-  const [rightEyeData, setRightEyeData] = useState<EyeLogMARData[]>([]);
+  const [visionTests, setVisionTests] = useState<VisionTest[]>([]);
 
   useEffect(() => {
-    setLeftEyeData(EyeDataStorage.getEyeData('left'));
-    setRightEyeData(EyeDataStorage.getEyeData('right'));
+    setVisionTests(EyeDataStorage.getAllTests());
   }, []);
 
   const formatDate = (timestamp: number) => {
@@ -35,63 +33,126 @@ const ResultsPage: React.FC = () => {
     return "#dc3545"; // Red
   };
 
-  const renderEyeResults = (eyeData: EyeLogMARData[], eyeName: string) => {
-    if (eyeData.length === 0) {
+  const formatDuration = (startTime: number, endTime: number) => {
+    const durationMs = endTime - startTime;
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const renderTestResults = () => {
+    if (visionTests.length === 0) {
       return (
-        <div className="eye-results-section">
-          <h2>{eyeName} Eye</h2>
-          <p className="no-data">No assessment data available</p>
+        <div className="no-results">
+          <h2>No Assessment Data</h2>
+          <p>Complete a vision assessment to see your results here.</p>
+          <button 
+            onClick={() => navigate(ROUTES.ASSESSMENT)}
+            className="start-assessment-button"
+          >
+            Start Assessment
+          </button>
         </div>
       );
     }
 
     return (
-      <div className="eye-results-section">
-        <h2>{eyeName} Eye</h2>
-        <div className="results-history">
-          {eyeData.map((result, index) => {
-            const visionLevel = getVisionLevel(result.logMARScore);
-            const visionColor = getVisionColor(result.logMARScore);
-            
-            return (
-              <div key={result.timestamp} className="result-card">
-                <div className="result-header">
-                  <span className="result-date">{formatDate(result.timestamp)}</span>
+      <div className="tests-history">
+        {visionTests.map((test, index) => {
+          const testDate = new Date(Math.max(test.leftEye.completedTimestamp, test.rightEye.completedTimestamp));
+          
+          return (
+            <div key={`${test.leftEye.completedTimestamp}-${test.rightEye.completedTimestamp}`} className="test-card">
+              <div className="test-header">
+                <div className="test-info">
+                  <span className="test-date">{formatDate(testDate.getTime())}</span>
                   {index === 0 && <span className="latest-badge">Latest</span>}
                 </div>
-                <div className="result-content">
-                  <div className="logmar-display">
-                    <div className="logmar-score" style={{ color: visionColor }}>
-                      {result.logMARScore.toFixed(3)}
+                <div className="test-metadata">
+                  <span className="config-name">{test.viewingConfigurationName}</span>
+                  <span className="distance">{test.distanceCentimeters}cm</span>
+                  <span className="calibration">{test.pixelsPerCm.toFixed(1)} px/cm</span>
+                </div>
+              </div>
+              
+              <div className="test-content">
+                <div className="eye-results-grid">
+                  {/* Left Eye Results */}
+                  <div className="eye-result">
+                    <h4>Left Eye</h4>
+                    <div className="logmar-display">
+                      <div className="logmar-score" style={{ color: getVisionColor(test.leftEye.logMARScore) }}>
+                        {test.leftEye.logMARScore.toFixed(3)}
+                      </div>
+                      <div className="vision-level" style={{ color: getVisionColor(test.leftEye.logMARScore) }}>
+                        {getVisionLevel(test.leftEye.logMARScore)}
+                      </div>
                     </div>
-                    <div className="vision-level" style={{ color: visionColor }}>
-                      {visionLevel}
+                    <div className="eye-details">
+                      <div className="detail-row">
+                        <span className="detail-label">Accuracy:</span>
+                        <span className="detail-value">
+                          {test.leftEye.attemptedLetters > 0 
+                            ? `${Math.round((test.leftEye.correctLetters / test.leftEye.attemptedLetters) * 100)}%`
+                            : 'N/A'
+                          }
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="detail-label">Duration:</span>
+                        <span className="detail-value">
+                          {formatDuration(test.leftEye.startedTimestamp, test.leftEye.completedTimestamp)}
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="detail-label">Letters:</span>
+                        <span className="detail-value">
+                          {test.leftEye.correctLetters}/{test.leftEye.attemptedLetters}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="result-details">
-                    <div className="detail-row">
-                      <span className="detail-label">Correct:</span>
-                      <span className="detail-value">{result.correctLetters}</span>
+
+                  {/* Right Eye Results */}
+                  <div className="eye-result">
+                    <h4>Right Eye</h4>
+                    <div className="logmar-display">
+                      <div className="logmar-score" style={{ color: getVisionColor(test.rightEye.logMARScore) }}>
+                        {test.rightEye.logMARScore.toFixed(3)}
+                      </div>
+                      <div className="vision-level" style={{ color: getVisionColor(test.rightEye.logMARScore) }}>
+                        {getVisionLevel(test.rightEye.logMARScore)}
+                      </div>
                     </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Attempted:</span>
-                      <span className="detail-value">{result.attemptedLetters}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Accuracy:</span>
-                      <span className="detail-value">
-                        {result.attemptedLetters > 0 
-                          ? `${Math.round((result.correctLetters / result.attemptedLetters) * 100)}%`
-                          : 'N/A'
-                        }
-                      </span>
+                    <div className="eye-details">
+                      <div className="detail-row">
+                        <span className="detail-label">Accuracy:</span>
+                        <span className="detail-value">
+                          {test.rightEye.attemptedLetters > 0 
+                            ? `${Math.round((test.rightEye.correctLetters / test.rightEye.attemptedLetters) * 100)}%`
+                            : 'N/A'
+                          }
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="detail-label">Duration:</span>
+                        <span className="detail-value">
+                          {formatDuration(test.rightEye.startedTimestamp, test.rightEye.completedTimestamp)}
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span className="detail-label">Letters:</span>
+                        <span className="detail-value">
+                          {test.rightEye.correctLetters}/{test.rightEye.attemptedLetters}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -99,8 +160,7 @@ const ResultsPage: React.FC = () => {
   const handleClearData = () => {
     if (window.confirm('Are you sure you want to clear all assessment data? This action cannot be undone.')) {
       EyeDataStorage.clearAllData();
-      setLeftEyeData([]);
-      setRightEyeData([]);
+      setVisionTests([]);
     }
   };
 
@@ -119,7 +179,7 @@ const ResultsPage: React.FC = () => {
             Your complete LogMAR vision assessment history for both eyes.
           </p>
           
-          {(leftEyeData.length > 0 || rightEyeData.length > 0) && (
+          {visionTests.length > 0 && (
             <button 
               onClick={handleClearData}
               className="clear-data-button"
@@ -130,25 +190,9 @@ const ResultsPage: React.FC = () => {
           )}
         </div>
 
-        {leftEyeData.length === 0 && rightEyeData.length === 0 ? (
-          <div className="no-results">
-            <h2>No Assessment Data</h2>
-            <p>Complete a vision assessment to see your results here.</p>
-            <button 
-              onClick={() => navigate(ROUTES.ASSESSMENT)}
-              className="start-assessment-button"
-            >
-              Start Assessment
-            </button>
-          </div>
-        ) : (
-          <div className="results-content">
-            <div className="eyes-results-grid">
-              {renderEyeResults(leftEyeData, "Left")}
-              {renderEyeResults(rightEyeData, "Right")}
-            </div>
-          </div>
-        )}
+        <div className="results-content">
+          {renderTestResults()}
+        </div>
       </div>
     </div>
   );

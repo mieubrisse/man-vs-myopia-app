@@ -1,12 +1,12 @@
 import React from "react";
 import "./AssessmentResultsScreen.css";
-import type { EyeLogMARData } from "../lib/EyeDataStorage";
+import type { EyeTestResult } from "../lib/EyeDataStorage";
 
 interface AssessmentResultsScreenProps {
   onGoHome: () => void;
   results: {
-    leftEye: EyeLogMARData | null;
-    rightEye: EyeLogMARData | null;
+    leftEye: EyeTestResult | null;
+    rightEye: EyeTestResult | null;
   } | null;
 }
 
@@ -30,7 +30,7 @@ const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
     return "#dc3545"; // Red
   };
 
-  const renderEyeResults = (eyeData: EyeLogMARData | null, eyeName: string) => {
+  const renderEyeResults = (eyeData: EyeTestResult | null, eyeName: string) => {
     if (!eyeData) {
       return (
         <div className="eye-results">

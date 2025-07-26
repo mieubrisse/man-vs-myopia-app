@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import LogMARChart from "./LogMARChart";
 import EyeIntroScreen from "./EyeIntroScreen";
 import { EyeDataStorage } from "../lib/EyeDataStorage";
-import type { Eye, EyeLogMARData } from "../lib/EyeDataStorage";
+import type { Eye, EyeTestResult, VisionTest } from "../lib/EyeDataStorage";
 import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
 
 interface CalibrationData {
@@ -19,8 +19,8 @@ interface EyeAssessmentWorkflowProps {
   calibrationData: CalibrationData | null;
   viewingConfiguration: ViewingConfiguration | null;
   onWorkflowComplete: (results: {
-    leftEye: EyeLogMARData | null;
-    rightEye: EyeLogMARData | null;
+    leftEye: EyeTestResult | null;
+    rightEye: EyeTestResult | null;
   }) => void;
   createGuessingEngine: (eye: Eye) => UserLogMARGuessingEngine;
 }
@@ -34,8 +34,10 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   createGuessingEngine
 }) => {
   const [workflowState, setWorkflowState] = useState<WorkflowState>('leftEyeIntro');
-  const [leftEyeResult, setLeftEyeResult] = useState<EyeLogMARData | null>(null);
-  const [rightEyeResult, setRightEyeResult] = useState<EyeLogMARData | null>(null);
+  const [leftEyeResult, setLeftEyeResult] = useState<EyeTestResult | null>(null);
+  const [rightEyeResult, setRightEyeResult] = useState<EyeTestResult | null>(null);
+  const [leftEyeStartTime, setLeftEyeStartTime] = useState<number>(0);
+  const [rightEyeStartTime, setRightEyeStartTime] = useState<number>(0);
 
   const handleLeftEyeComplete = (results: {
     logMARScore: number;
@@ -43,12 +45,12 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     totalLetters: number;
     attemptedLetters: number;
   }) => {
-    const eyeData: EyeLogMARData = {
+    const eyeData: EyeTestResult = {
       ...results,
-      timestamp: Date.now()
+      completedTimestamp: Date.now(),
+      startedTimestamp: leftEyeStartTime
     };
     
-    EyeDataStorage.saveEyeData('left', eyeData);
     setLeftEyeResult(eyeData);
     setWorkflowState('rightEyeIntro');
   };
@@ -59,13 +61,26 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     totalLetters: number;
     attemptedLetters: number;
   }) => {
-    const eyeData: EyeLogMARData = {
+    const eyeData: EyeTestResult = {
       ...results,
-      timestamp: Date.now()
+      completedTimestamp: Date.now(),
+      startedTimestamp: rightEyeStartTime
     };
     
-    EyeDataStorage.saveEyeData('right', eyeData);
     setRightEyeResult(eyeData);
+    
+    // Save the complete test with all metadata
+    if (leftEyeResult && viewingConfiguration && calibrationData) {
+      const visionTest: VisionTest = {
+        leftEye: leftEyeResult,
+        rightEye: eyeData,
+        viewingConfigurationName: viewingConfiguration.name,
+        distanceCentimeters: viewingConfiguration.distanceCentimeters,
+        pixelsPerCm: calibrationData.pixelsPerCm
+      };
+      
+      EyeDataStorage.saveTest(visionTest);
+    }
     
     // Complete the workflow
     onWorkflowComplete({
@@ -79,7 +94,10 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
       return (
         <EyeIntroScreen 
           eye="left" 
-          onStartTest={() => setWorkflowState('leftEyeTest')} 
+          onStartTest={() => {
+            setLeftEyeStartTime(Date.now());
+            setWorkflowState('leftEyeTest');
+          }} 
         />
       );
 
@@ -98,7 +116,10 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
       return (
         <EyeIntroScreen 
           eye="right" 
-          onStartTest={() => setWorkflowState('rightEyeTest')} 
+          onStartTest={() => {
+            setRightEyeStartTime(Date.now());
+            setWorkflowState('rightEyeTest');
+          }} 
         />
       );
 
