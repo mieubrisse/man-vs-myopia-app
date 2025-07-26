@@ -45,10 +45,6 @@ const HomePage: React.FC = () => {
     <div className="home-screen">
       <div className="home-container">
         <h1>Vision Assessment</h1>
-        <p className="home-description">
-          Welcome to the LogMAR vision assessment tool. Please choose an option
-          below.
-        </p>
 
 
         <div className="home-options">
