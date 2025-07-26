@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./HomePage.css";
-import { EyeDataStorage } from "../lib/EyeDataStorage";
-import type { EyeLogMARData } from "../lib/EyeDataStorage";
 import { ROUTES } from "../lib/routes";
 
 const HomePage: React.FC = () => {
@@ -10,8 +8,6 @@ const HomePage: React.FC = () => {
   const [hasCalibration, setHasCalibration] = useState(false);
   const [hasViewingConfigurations, setHasViewingConfigurations] =
     useState(false);
-  const [leftEyeData, setLeftEyeData] = useState<EyeLogMARData | null>(null);
-  const [rightEyeData, setRightEyeData] = useState<EyeLogMARData | null>(null);
 
   // Check for existing calibration and viewing configurations on component mount
   useEffect(() => {
@@ -30,11 +26,6 @@ const HomePage: React.FC = () => {
       setHasViewingConfigurations(false);
     }
 
-    // Load recent eye data
-    const leftData = EyeDataStorage.getEyeData('left');
-    const rightData = EyeDataStorage.getEyeData('right');
-    setLeftEyeData(leftData.length > 0 ? leftData[0] : null);
-    setRightEyeData(rightData.length > 0 ? rightData[0] : null);
   }, []);
 
   const handleStartAssessment = () => {
@@ -49,28 +40,6 @@ const HomePage: React.FC = () => {
   if (!hasViewingConfigurations)
     missingRequirements.push("viewing configuration");
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString();
-  };
-
-  const renderEyeResult = (eyeData: EyeLogMARData | null, eyeName: string) => {
-    if (!eyeData) {
-      return (
-        <div className="eye-result">
-          <h4>{eyeName} Eye</h4>
-          <p className="no-data">No recent data</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="eye-result">
-        <h4>{eyeName} Eye</h4>
-        <div className="logmar-value">{eyeData.logMARScore.toFixed(3)}</div>
-        <div className="test-date">{formatDate(eyeData.timestamp)}</div>
-      </div>
-    );
-  };
 
   return (
     <div className="home-screen">
@@ -81,21 +50,6 @@ const HomePage: React.FC = () => {
           below.
         </p>
 
-        {/* Recent Assessment Results */}
-        {(leftEyeData || rightEyeData) && (
-          <div className="recent-results">
-            <h2>Recent Assessment Results</h2>
-            <div className="eyes-results" style={{ 
-              display: 'flex', 
-              gap: '2rem', 
-              justifyContent: 'center',
-              marginBottom: '2rem' 
-            }}>
-              {renderEyeResult(leftEyeData, "Left")}
-              {renderEyeResult(rightEyeData, "Right")}
-            </div>
-          </div>
-        )}
 
         <div className="home-options">
           <button
@@ -119,6 +73,17 @@ const HomePage: React.FC = () => {
             <div className="option-content">
               <h3>Viewing Configurations</h3>
               <p>Manage your viewing configurations for different distances</p>
+            </div>
+          </button>
+
+          <button
+            className="home-option results-option"
+            onClick={() => navigate(ROUTES.RESULTS)}
+          >
+            <div className="option-icon">📊</div>
+            <div className="option-content">
+              <h3>Assessment Results</h3>
+              <p>View your complete vision assessment history</p>
             </div>
           </button>
 
