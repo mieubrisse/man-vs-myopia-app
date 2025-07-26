@@ -4,7 +4,7 @@ import ViewingConfigurationSelectionScreen from "../components/ViewingConfigurat
 import EyeAssessmentWorkflow from "../components/EyeAssessmentWorkflow";
 import AssessmentResultsScreen from "../components/AssessmentResultsScreen";
 import { EyeDataStorage } from "../lib/EyeDataStorage";
-import type { Eye, EyeLogMARData } from "../lib/EyeDataStorage";
+import type { Eye, EyeTestResult } from "../lib/EyeDataStorage";
 import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
 import { orientationToRotation } from "../components/LandoltCOptotype";
 import { ROUTES } from "../lib/routes";
@@ -71,9 +71,8 @@ const createGuessingEngine = (eye: Eye): UserLogMARGuessingEngine => {
   // Check for previous LogMAR data for this eye
   let storedLogMAR: number | null = null;
   try {
-    const eyeData = EyeDataStorage.getEyeData(eye);
-    if (eyeData.length > 0) {
-      storedLogMAR = eyeData[0].logMARScore;
+    storedLogMAR = EyeDataStorage.getLatestLogMAR(eye);
+    if (storedLogMAR !== null) {
       console.log(`Retrieved ${eye} eye LogMAR from storage:`, storedLogMAR);
     }
   } catch (error) {
@@ -130,8 +129,8 @@ const AssessmentPage: React.FC = () => {
     distanceCentimeters: number;
   } | null>(null);
   const [assessmentResults, setAssessmentResults] = useState<{
-    leftEye: EyeLogMARData | null;
-    rightEye: EyeLogMARData | null;
+    leftEye: EyeTestResult | null;
+    rightEye: EyeTestResult | null;
   } | null>(null);
 
   const handleViewingConfigurationSelected = (configuration: {
@@ -155,8 +154,8 @@ const AssessmentPage: React.FC = () => {
   };
 
   const handleAssessmentComplete = (results: {
-    leftEye: EyeLogMARData | null;
-    rightEye: EyeLogMARData | null;
+    leftEye: EyeTestResult | null;
+    rightEye: EyeTestResult | null;
   }) => {
     setAssessmentResults(results);
     setAssessmentState('results');
