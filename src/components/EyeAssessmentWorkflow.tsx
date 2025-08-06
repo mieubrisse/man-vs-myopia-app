@@ -35,7 +35,7 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
 }) => {
   const [workflowState, setWorkflowState] = useState<WorkflowState>('leftEyeIntro');
   const [leftEyeResult, setLeftEyeResult] = useState<EyeTestResult | null>(null);
-  const [rightEyeResult, setRightEyeResult] = useState<EyeTestResult | null>(null);
+  const [, setRightEyeResult] = useState<EyeTestResult | null>(null);
   const [leftEyeStartTime, setLeftEyeStartTime] = useState<number>(0);
   const [rightEyeStartTime, setRightEyeStartTime] = useState<number>(0);
 
