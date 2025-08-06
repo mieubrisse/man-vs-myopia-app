@@ -1,0 +1,183 @@
+.vision-test-results {
+  /* Base styles for the component */
+}
+
+.results-description {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.single-result {
+  margin-bottom: 2rem;
+}
+
+.results-actions {
+  margin-bottom: 2rem;
+  text-align: right;
+}
+
+.clear-data-button {
+  padding: 0.5rem 1rem;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.clear-data-button:hover {
+  background-color: #c82333;
+}
+
+.no-results {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.no-results h2 {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.no-results p {
+  color: #888;
+  margin-bottom: 2rem;
+}
+
+.tests-history {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.test-card {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  transition: box-shadow 0.2s;
+}
+
+.test-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.test-header {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.test-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.test-metadata {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.config-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.latest-badge {
+  background-color: #28a745;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.test-content {
+  padding: 1.5rem;
+}
+
+.eye-results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.eye-result h4 {
+  color: #333;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.logmar-display {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.logmar-score {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.vision-level {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.eye-details {
+  margin-top: 1rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+}
+
+.detail-label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.detail-value {
+  font-weight: 600;
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .eye-results-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .test-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .test-metadata {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .results-actions {
+    text-align: center;
+  }
+}

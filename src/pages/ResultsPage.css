@@ -45,23 +45,6 @@
   margin-bottom: 2rem;
 }
 
-.clear-data-button {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 0.5rem 1rem;
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-}
-
-.clear-data-button:hover {
-  background-color: #c82333;
-}
 
 .no-results {
   text-align: center;
@@ -79,6 +62,11 @@
 .no-results p {
   color: #888;
   margin-bottom: 2rem;
+}
+
+.no-results-actions {
+  text-align: center;
+  padding: 2rem;
 }
 
 .start-assessment-button {
