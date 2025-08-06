@@ -8,7 +8,6 @@ interface EyeIntroScreenProps {
 
 const EyeIntroScreen: React.FC<EyeIntroScreenProps> = ({ eye, onStartTest }) => {
   const eyeName = eye === 'left' ? 'Left' : 'Right';
-  const otherEye = eye === 'left' ? 'right' : 'left';
 
   return (
     <div style={{

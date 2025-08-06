@@ -116,7 +116,6 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   viewingConfiguration,
   onAssessmentComplete,
   guessingEngine,
-  currentEye,
 }) => {
   const LANDOLT_C_ORIENTATIONS = [
     "NORTH",
