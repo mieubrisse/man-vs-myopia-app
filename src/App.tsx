@@ -6,7 +6,6 @@ import CalibrationPage from "./pages/CalibrationPage";
 import ViewingConfigurationsPage from "./pages/ViewingConfigurationsPage";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
-import LandoltCTestScreen from "./components/LandoltCTestScreen";
 import { ROUTES } from "./lib/routes";
 
 const App: React.FC = () => {
@@ -18,7 +17,6 @@ const App: React.FC = () => {
         <Route path={ROUTES.VIEWING_CONFIGURATIONS} element={<ViewingConfigurationsPage />} />
         <Route path={ROUTES.ASSESSMENT} element={<AssessmentPage />} />
         <Route path={ROUTES.RESULTS} element={<ResultsPage />} />
-        <Route path={ROUTES.LANDOLT_C_TEST} element={<LandoltCTestScreen />} />
       </Routes>
     </Router>
   );
