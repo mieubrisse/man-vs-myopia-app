@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import LogMARChart from "./LogMARChart";
 import EyeIntroScreen from "./EyeIntroScreen";
+import BrightnessReminder from "./BrightnessReminder";
 import { EyeDataStorage } from "../lib/EyeDataStorage";
 import type { Eye, EyeTestResult, VisionTest } from "../lib/EyeDataStorage";
 import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
@@ -25,7 +26,7 @@ interface EyeAssessmentWorkflowProps {
   createGuessingEngine: (eye: Eye) => UserLogMARGuessingEngine;
 }
 
-type WorkflowState = 'leftEyeIntro' | 'leftEyeTest' | 'rightEyeIntro' | 'rightEyeTest' | 'complete';
+type WorkflowState = 'brightnessReminder' | 'leftEyeIntro' | 'leftEyeTest' | 'rightEyeIntro' | 'rightEyeTest' | 'complete';
 
 const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   calibrationData,
@@ -33,7 +34,7 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   onWorkflowComplete,
   createGuessingEngine
 }) => {
-  const [workflowState, setWorkflowState] = useState<WorkflowState>('leftEyeIntro');
+  const [workflowState, setWorkflowState] = useState<WorkflowState>('brightnessReminder');
   const [leftEyeResult, setLeftEyeResult] = useState<EyeTestResult | null>(null);
   const [, setRightEyeResult] = useState<EyeTestResult | null>(null);
   const [leftEyeStartTime, setLeftEyeStartTime] = useState<number>(0);
@@ -90,6 +91,13 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   };
 
   switch (workflowState) {
+    case 'brightnessReminder':
+      return (
+        <BrightnessReminder 
+          onContinue={() => setWorkflowState('leftEyeIntro')}
+        />
+      );
+
     case 'leftEyeIntro':
       return (
         <EyeIntroScreen 
