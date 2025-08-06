@@ -104,16 +104,6 @@ const HomePage: React.FC = () => {
             </div>
           </button>
 
-          <button
-            className="home-option landolt-c-test-option"
-            onClick={() => navigate(ROUTES.LANDOLT_C_TEST)}
-          >
-            <div className="option-icon">⭕</div>
-            <div className="option-content">
-              <h3>Show Landolt C Test</h3>
-              <p>Display the Landolt C optotype for testing</p>
-            </div>
-          </button>
         </div>
       </div>
     </div>
