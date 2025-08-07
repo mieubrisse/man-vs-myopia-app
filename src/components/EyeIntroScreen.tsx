@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import type { Eye } from "../lib/EyeDataStorage";
 
 interface EyeIntroScreenProps {
@@ -8,74 +8,6 @@ interface EyeIntroScreenProps {
 
 const EyeIntroScreen: React.FC<EyeIntroScreenProps> = ({ eye, onStartTest }) => {
   const eyeName = eye === 'left' ? 'Left' : 'Right';
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const [hasVoiceSupport, setHasVoiceSupport] = useState(false);
-
-  // Initialize speech recognition for "continue" command
-  useEffect(() => {
-    if (!window.webkitSpeechRecognition) {
-      console.log("Speech recognition not supported - voice commands unavailable");
-      return;
-    }
-
-    try {
-      const recognition = new window.webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = "en-US";
-      
-      recognitionRef.current = recognition;
-      setHasVoiceSupport(true);
-      
-      recognition.onstart = () => {
-        console.log("Listening for 'continue' command");
-      };
-      
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        if (event.error === "no-speech") {
-          console.log("No speech detected");
-        } else {
-          console.error("Speech recognition error:", event.error);
-        }
-      };
-      
-      recognition.onend = () => {
-        // Restart recognition to keep listening continuously
-        if (recognitionRef.current) {
-          recognition.start();
-        }
-      };
-      
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal || result[0].confidence > 0.7) {
-            const transcript = result[0].transcript.toLowerCase().trim();
-            console.log("Heard:", transcript);
-            
-            if (transcript.includes("continue") || transcript.includes("start")) {
-              console.log("Continue command detected - starting test");
-              recognition.stop();
-              onStartTest();
-              return;
-            }
-          }
-        }
-      };
-      
-      // Start listening when component mounts
-      recognition.start();
-    } catch (error) {
-      console.error("Failed to initialize speech recognition:", error);
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, [onStartTest]);
 
   return (
     <div style={{
@@ -95,19 +27,6 @@ const EyeIntroScreen: React.FC<EyeIntroScreenProps> = ({ eye, onStartTest }) => 
         }
       </p>
       
-      {hasVoiceSupport && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.5rem', 
-          marginBottom: '1rem',
-          color: '#28a745',
-          fontSize: '1rem'
-        }}>
-          <span style={{ fontSize: '1.2rem' }}>🎤</span>
-          <span>Say "continue" or "start" to begin</span>
-        </div>
-      )}
       <button 
         onClick={onStartTest}
         style={{
