@@ -1,15 +1,17 @@
 {
   "name": "Claude Code Sandbox",
-  "dockerComposeFile": "../docker-compose.yml",
+  "dockerComposeFile": "./docker-compose.yml",
   "service": "app",
   "remoteUser": "node",
   "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "workspaceMount": "source=${localWorkspaceFolder}/app,target=/workspace,type=bind,consistency=cached",
+  "postCreateCommand": "bash /workspace/run-dev.sh",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
   ],
   "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
   },

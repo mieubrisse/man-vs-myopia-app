@@ -1,12 +1,10 @@
 services:
+  # NOTE: This is just a shell; all the actual configuration happens in the devcontainer.json
   app:
     build:
-      context: app
+      context: .
       dockerfile: Dockerfile
-    volumes:
-      - ..:/workspace:cached
     environment:
-      - NODE_OPTIONS=--max-old-space-size=4096
       - DATABASE_URL=postgres://vision_user:vision_password@postgres:5432/vision_app
     ports:
       - "5173:5173"
