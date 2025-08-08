@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .devcontainer
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - DATABASE_URL=postgres://vision_user:vision_password@postgres:5432/vision_app
+    ports:
+      - "5173:5173"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: "bash run-dev.sh"
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: vision_app
+      POSTGRES_USER: vision_user
+      POSTGRES_PASSWORD: vision_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vision_user -d vision_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

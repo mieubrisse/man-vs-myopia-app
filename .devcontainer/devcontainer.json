@@ -1,18 +1,24 @@
 {
   "name": "Claude Code Sandbox",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      "TZ": "${localEnv:TZ:America/Los_Angeles}",
-      "CLAUDE_CODE_VERSION": "latest",
-      "GIT_DELTA_VERSION": "0.18.2",
-      "ZSH_IN_DOCKER_VERSION": "1.2.0"
-    }
-  },
-  "runArgs": [
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "remoteUser": "node",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "mounts": [
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
   ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
+  },
+  "args": {
+    "TZ": "${localEnv:TZ:America/Los_Angeles}",
+    "CLAUDE_CODE_VERSION": "latest",
+    "GIT_DELTA_VERSION": "0.18.2",
+    "ZSH_IN_DOCKER_VERSION": "1.2.0"
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -44,24 +50,5 @@
         "typescript.tsdk": "node_modules/typescript/lib"
       }
     }
-  },
-  "remoteUser": "node",
-  "mounts": [
-    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
-  ],
-  "containerEnv": {
-    "NODE_OPTIONS": "--max-old-space-size=4096",
-    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
-  },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-  "workspaceFolder": "/workspace",
-  "forwardPorts": [5173],
-  "portsAttributes": {
-    "5173": {
-      "host": "0.0.0.0"
-    }
-  },
-  "postCreateCommand": "bash run-dev.sh"
+  }
 }
