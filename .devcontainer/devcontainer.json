@@ -63,5 +63,5 @@
       "host": "0.0.0.0"
     }
   },
-  "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh && npm install && npm run dev"
+  "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh && bash run-dev.sh"
 }
