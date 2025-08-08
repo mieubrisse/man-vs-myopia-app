@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   jq \
   nano \
   vim \
+  postgresql-client \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Ensure default node user has access to /usr/local/share
@@ -88,5 +89,5 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 # RUN chmod +x /usr/local/bin/init-firewall.sh && \
 #   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
 #   chmod 0440 /etc/sudoers.d/node-firewall
-
-USER node
+# 
+# USER node

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./ResultsPage.css";
-import { EyeDataStorage } from "../lib/EyeDataStorage";
+import { ApiDataStorage } from "../lib/ApiDataStorage";
 import type { VisionTest } from "../lib/EyeDataStorage";
 import { ROUTES } from "../lib/routes";
 import VisionTestResults from "../components/VisionTestResults";
@@ -11,14 +11,23 @@ const ResultsPage: React.FC = () => {
   const [visionTests, setVisionTests] = useState<VisionTest[]>([]);
 
   useEffect(() => {
-    setVisionTests(EyeDataStorage.getAllTests());
+    const loadTests = async () => {
+      const tests = await ApiDataStorage.getAllTests();
+      setVisionTests(tests);
+    };
+    loadTests();
   }, []);
 
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
     if (window.confirm('Are you sure you want to clear all assessment data? This action cannot be undone.')) {
-      EyeDataStorage.clearAllData();
-      setVisionTests([]);
+      try {
+        await ApiDataStorage.clearAllData();
+        setVisionTests([]);
+      } catch (error) {
+        console.error('Failed to clear data:', error);
+        alert('Failed to clear data. Please try again.');
+      }
     }
   };
 
