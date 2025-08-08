@@ -1,3 +1,5 @@
+# NOTE: This Dockerfile is to set up _the dev environment_! It's NOT for production builds!
+
 FROM node:20
 
 ARG TZ
