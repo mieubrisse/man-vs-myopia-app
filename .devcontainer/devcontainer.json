@@ -57,11 +57,15 @@
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
-  "forwardPorts": [5173],
+  "forwardPorts": [5173, 3000],
   "portsAttributes": {
     "5173": {
       "host": "0.0.0.0"
+    },
+    "3000": {
+      "host": "0.0.0.0"
     }
   },
-  "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh && bash run-dev.sh"
+  "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh && npm install",
+  "postStartCommand": "(npm run dev & npm run dev:vercel) && tail -f /dev/null"
 }

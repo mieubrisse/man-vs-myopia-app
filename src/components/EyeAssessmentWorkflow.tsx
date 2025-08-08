@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import LogMARChart from "./LogMARChart";
 import EyeIntroScreen from "./EyeIntroScreen";
 import BrightnessReminder from "./BrightnessReminder";
-import { EyeDataStorage } from "../lib/EyeDataStorage";
+import { BlobDataStorage } from "../lib/BlobDataStorage";
 import type { Eye, EyeTestResult, VisionTest } from "../lib/EyeDataStorage";
 import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
 
@@ -56,7 +56,7 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     setWorkflowState('rightEyeIntro');
   };
 
-  const handleRightEyeComplete = (results: {
+  const handleRightEyeComplete = async (results: {
     logMARScore: number;
     correctLetters: number;
     totalLetters: number;
@@ -80,7 +80,13 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
         pixelsPerCm: calibrationData.pixelsPerCm
       };
       
-      EyeDataStorage.saveTest(visionTest);
+      try {
+        await BlobDataStorage.saveTest(visionTest);
+        console.log('Saved test to Vercel blob storage');
+      } catch (error) {
+        console.error('Failed to save vision test:', error);
+        // Continue with workflow completion even if save fails
+      }
     }
     
     // Complete the workflow
