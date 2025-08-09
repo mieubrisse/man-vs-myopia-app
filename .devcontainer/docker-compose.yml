@@ -11,6 +11,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - ../app:/workspace:cached
 
   postgres:
     image: postgres:16
@@ -22,7 +24,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vision_user -d vision_app"]
       interval: 5s

@@ -93,3 +93,6 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 #   chmod 0440 /etc/sudoers.d/node-firewall
 # 
 # USER node
+
+# Keep container alive for devcontainer to attach
+CMD ["sleep", "infinity"]
