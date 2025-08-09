@@ -5,10 +5,13 @@
   "remoteUser": "node",
   "workspaceFolder": "/workspace",
   "postCreateCommand": "bash /workspace/run-dev.sh",
+
+  "//": "Note that the /workspace mount happens in the docker-compose itself",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
   ],
+
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
