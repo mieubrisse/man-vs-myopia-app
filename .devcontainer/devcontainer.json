@@ -4,7 +4,6 @@
   "service": "app",
   "remoteUser": "node",
   "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder}/app,target=/workspace,type=bind,consistency=cached",
   "postCreateCommand": "bash /workspace/run-dev.sh",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
