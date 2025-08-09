@@ -1,9 +1,5 @@
 import Fastify from "fastify";
 import FastifyVite from "@fastify/vite";
-import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const fastify = Fastify({
   logger: {
@@ -22,7 +18,7 @@ await fastify.register(import("@fastify/postgres"), {
 
 // Register Vite plugin for SPA
 await fastify.register(FastifyVite, {
-  root: __dirname,
+  root: import.meta.dirname,
   // dev: process.argv.includes("--dev"),
   dev: true,
   spa: true,
