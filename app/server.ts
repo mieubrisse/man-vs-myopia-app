@@ -14,7 +14,12 @@ await fastify.register(import('@fastify/postgres'), {
   connectionString: process.env.DATABASE_URL || 'postgres://vision_user:vision_password@localhost:5432/vision_app'
 })
 
-// In development, just serve API routes - frontend runs separately
+// Register Vite plugin for SPA
+await fastify.register(FastifyVite, {
+  root: process.cwd(),
+  dev: process.argv.includes('--dev'),
+  spa: true
+})
 
 // API Routes for vision test data
 fastify.get('/api/vision-tests', async function (request, reply) {
@@ -79,11 +84,15 @@ fastify.delete('/api/vision-tests', async function (request, reply) {
   }
 })
 
-// API server only - frontend runs on separate port in development
+// Serve SPA for all non-API routes
+fastify.get('/', (req, reply) => {
+  return reply.html()
+})
+
+await fastify.vite.ready()
 
 try {
-  await fastify.listen({ port: 3001, host: '0.0.0.0' })
-  console.log('API server running on http://localhost:3001')
+  await fastify.listen({ port: 5173, host: '0.0.0.0' })
 } catch (err) {
   fastify.log.error(err)
   process.exit(1)
