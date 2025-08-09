@@ -8,8 +8,8 @@
 
   "//": "Note that the /workspace mount happens in the docker-compose itself",
   "mounts": [
-    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
+    "source=man-vs-myopia-app_claude-code-bashhistory,target=/commandhistory,type=volume",
+    "source=man-vs-myopia-app_claude-code-config,target=/home/node/.claude,type=volume"
   ],
 
   "containerEnv": {

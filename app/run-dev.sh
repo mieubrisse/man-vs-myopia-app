@@ -11,4 +11,8 @@ until pg_isready -h postgres -U vision_user -d vision_app; do
 done
 echo "Postgres is ready!"
 
-npm run dev
+# Start API server in background
+npm run dev &
+
+# Start Vite dev server
+npx vite --host 0.0.0.0 --port 5173

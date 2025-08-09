@@ -14,11 +14,7 @@ await fastify.register(import('@fastify/postgres'), {
   connectionString: process.env.DATABASE_URL || 'postgres://vision_user:vision_password@localhost:5432/vision_app'
 })
 
-// Register Vite plugin
-await fastify.register(FastifyVite, {
-  root: import.meta.url,
-  dev: process.env.NODE_ENV !== 'production'
-})
+// In development, just serve API routes - frontend runs separately
 
 // API Routes for vision test data
 fastify.get('/api/vision-tests', async function (request, reply) {
@@ -83,11 +79,11 @@ fastify.delete('/api/vision-tests', async function (request, reply) {
   }
 })
 
-// Serve Vite app for all other routes
-await fastify.vite.ready()
+// API server only - frontend runs on separate port in development
 
 try {
-  await fastify.listen({ port: 5173, host: '0.0.0.0' })
+  await fastify.listen({ port: 3001, host: '0.0.0.0' })
+  console.log('API server running on http://localhost:3001')
 } catch (err) {
   fastify.log.error(err)
   process.exit(1)
