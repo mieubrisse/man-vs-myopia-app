@@ -11,9 +11,7 @@ const fastify = Fastify({
 
 // Register Postgres plugin
 await fastify.register(import("@fastify/postgres"), {
-  connectionString:
-    process.env.DATABASE_URL ||
-    "postgres://vision_user:vision_password@localhost:5432/vision_app",
+  connectionString: process.env.DATABASE_URL,
 });
 
 // Register Vite plugin for SPA
