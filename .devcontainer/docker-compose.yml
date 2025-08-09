@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgres://vision_user:vision_password@postgres:5432/vision_app
+      DATABASE_URL: "postgres://vision_user:vision_password@postgres:5432/vision_app"
     ports:
       - "5173:5173"
     depends_on:
