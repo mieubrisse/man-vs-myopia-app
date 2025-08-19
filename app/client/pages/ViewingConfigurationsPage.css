@@ -2,10 +2,11 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  min-height: 100vh;
+  height: 100vh;
   background-color: #f5f5f5;
   padding: 2rem;
   position: relative;
+  overflow: hidden;
 }
 
 .home-link {
@@ -40,6 +41,8 @@
   max-width: 1200px;
   width: 100%;
   margin-top: 2rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
 }
 
 .viewing-configurations-container h1 {
