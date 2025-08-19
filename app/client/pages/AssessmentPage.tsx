@@ -185,6 +185,8 @@ const AssessmentPage: React.FC = () => {
         <AssessmentResultsScreen
           onGoHome={() => navigate(ROUTES.HOME)}
           results={assessmentResults}
+          viewingConfiguration={selectedViewingConfiguration}
+          calibrationData={calibrationData}
         />
       );
 
