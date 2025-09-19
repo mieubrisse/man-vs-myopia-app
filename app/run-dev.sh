@@ -1,5 +1,6 @@
 set -euo pipefail
-script_dirpath="$(cd "$(dirname "${0}")" && pwd)"
+
+cd "$(dirname "${0}")"
 
 npm install
 
