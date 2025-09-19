@@ -12,7 +12,8 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ../app:/workspace:cached
+      - ../:/workspace:cached
+      - node_modules:/workspace/app/node_modules
 
   postgres:
     image: postgres:16
@@ -33,3 +34,4 @@ services:
 
 volumes:
   man-vs-myopia-app_postgres-data:
+  node_modules:

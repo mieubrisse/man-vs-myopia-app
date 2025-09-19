@@ -2,9 +2,10 @@
   "name": "Claude Code Sandbox",
   "dockerComposeFile": "./docker-compose.yml",
   "service": "app",
-  "remoteUser": "node",
+  "remoteUser": "root",
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "bash /workspace/run-dev.sh",
+  "initializeCommand": "./.devcontainer/createVolumes.sh",
+  "postCreateCommand": "bash /workspace/app/run-dev.sh",
 
   "//": "Note that the /workspace mount happens in the docker-compose itself",
   "mounts": [
