@@ -55,6 +55,14 @@ export default tseslint.config({
 
 ### Firebase
 
-To initialie firebase for local development run `npm install -g firebase-tools` and then `firebase login` and `firebase init`.
+To initialise firebase for local development run `npm install -g firebase-tools` and then `firebase login` and `firebase init`.
 
 To launch the local firebase emulator run `firebase emulators:start`.
+
+#### Deployment
+
+TODO: Continuous deployment
+```
+npm run build
+firebase deploy
+```
