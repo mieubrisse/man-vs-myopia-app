@@ -6,37 +6,55 @@ import CalibrationPage from "./pages/CalibrationPage";
 import ViewingConfigurationsPage from "./pages/ViewingConfigurationsPage";
 import AssessmentPage from "./pages/AssessmentPage";
 import ResultsPage from "./pages/ResultsPage";
+import LoginPage from "./pages/LoginPage";
 import { ROUTES } from "./lib/routes";
-
-import { initializeApp,  } from 'firebase/app';
-import { getAnalytics } from "firebase/analytics";
-
-// TODO: Replace the following with your app's Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyCO1XR2yqK249cv4he7u9kfKY2yn-23clM",
-    authDomain: "myopia-data-streams.firebaseapp.com",
-    projectId: "myopia-data-streams",
-    storageBucket: "myopia-data-streams.firebasestorage.app",
-    messagingSenderId: "546263451191",
-    appId: "1:546263451191:web:f3177e1254565e5bdc21b2",
-    measurementId: "G-HT81VC67L9"
-};
-
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-analytics.app.automaticDataCollectionEnabled = true;
+import { AuthProvider } from "./lib/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import SignupPage from "./pages/SignupPage.tsx";
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <Routes>
-        <Route path={ROUTES.HOME} element={<HomePage />} />
-        <Route path={ROUTES.CALIBRATION} element={<CalibrationPage />} />
-        <Route path={ROUTES.VIEWING_CONFIGURATIONS} element={<ViewingConfigurationsPage />} />
-        <Route path={ROUTES.ASSESSMENT} element={<AssessmentPage />} />
-        <Route path={ROUTES.RESULTS} element={<ResultsPage />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path={ROUTES.HOME} element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+          <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+          <Route path={ROUTES.SIGNUP} element={<SignupPage />} />
+          <Route
+            path={ROUTES.CALIBRATION} 
+            element={
+              <ProtectedRoute>
+                <CalibrationPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path={ROUTES.VIEWING_CONFIGURATIONS} 
+            element={
+              <ProtectedRoute>
+                <ViewingConfigurationsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path={ROUTES.ASSESSMENT} 
+            element={
+              <ProtectedRoute>
+                <AssessmentPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path={ROUTES.RESULTS} 
+            element={
+              <ProtectedRoute>
+                <ResultsPage />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 };
 
