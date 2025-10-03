@@ -1,0 +1,84 @@
+.card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 16px;
+}
+
+/* Different card variants */
+.card.primary {
+  border-left: 4px solid #3a86ff;
+}
+
+.card.success {
+  border-left: 4px solid #4caf50;
+}
+
+.card.warning {
+  border-left: 4px solid #ff9100;
+}
+
+.card.danger {
+  border-left: 4px solid #e53935;
+}
+
+.card.info {
+  border-left: 4px solid #2196f3;
+}
+
+/* Card sizes */
+.card.small {
+  max-width: 300px;
+}
+
+.card.medium {
+  max-width: 500px;
+}
+
+.card.large {
+  max-width: 800px;
+}
+
+/* Card with hover effect */
+.card.hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+/* Card with clickable behavior */
+.card.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Card with centered content */
+.card.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.card.centered .card-header {
+  justify-content: center;
+}
+
+.card.centered .card-footer {
+  justify-content: center;
+}
