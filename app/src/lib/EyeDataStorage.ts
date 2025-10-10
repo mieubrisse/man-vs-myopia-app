@@ -20,6 +20,8 @@ export const VisionTestSchema = z.object({
   viewingConfigurationName: z.string(),
   distanceCentimeters: z.number(),
   pixelsPerCm: z.number(),
+  luxDeviceId: z.string().optional(),
+  luxMeasurement: z.number().optional(),
 });
 
 export const LuxDeviceSchema = z.object({
@@ -54,10 +56,15 @@ export class EyeDataStorage {
 
   private static async storeUserData(userData: UserData): Promise<void> {
     const userDataDocRef = await this.getUserDataDocRef(userData.userId);
+    userData.testResults.sort(
+      (a, b) =>
+        Math.max(b.leftEye.completedTimestamp, b.rightEye.completedTimestamp) -
+        Math.max(a.leftEye.completedTimestamp, a.rightEye.completedTimestamp)
+    );
     await setDoc(userDataDocRef, userData);
   }
 
-  private static async getCurrentUserData(): Promise<UserData> {
+  public static async getCurrentUserData(): Promise<UserData> {
     const userId = await this.getUserUID();
     const userDataDocRef = await this.getUserDataDocRef(userId);
     const userDataDoc = await getDoc(userDataDocRef);
