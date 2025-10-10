@@ -1,0 +1,71 @@
+.callout {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.callout-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+  color: inherit;
+}
+
+.callout-content {
+  flex: 1;
+  margin: 4px 0 0 0;
+  color: inherit;
+}
+
+.callout-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  margin-left: 8px;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.callout-close:hover {
+  opacity: 1;
+}
+
+/* Callout types */
+.callout-info {
+  background-color: rgb(235, 245, 255);
+  border: 1px solid rgb(190, 220, 250);
+  color: rgb(22, 78, 143);
+}
+
+.callout-warning {
+  background-color: rgb(255, 250, 235);
+  border: 1px solid rgb(250, 230, 180);
+  color: rgb(143, 98, 22);
+}
+
+.callout-error {
+  background-color: rgb(255, 235, 235);
+  border: 1px solid rgb(250, 190, 190);
+  color: rgb(143, 32, 32);
+}
+
+.callout-success {
+  background-color: rgb(235, 255, 240);
+  border: 1px solid rgb(190, 250, 200);
+  color: rgb(22, 120, 60);
+}
+
+/* Special styles for browser warning */
+.browser-warning {
+  margin-bottom: 0;
+  border-radius: 0;
+}
