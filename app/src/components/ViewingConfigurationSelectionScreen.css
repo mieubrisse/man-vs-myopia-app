@@ -201,28 +201,6 @@
   margin-top: auto;
 }
 
-.start-assessment-button {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 6px;
-  font-size: 1.2rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  min-width: 200px;
-}
-
-.start-assessment-button:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.start-assessment-button:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
 @media (max-width: 768px) {
   .selection-container {
     padding: 2rem;

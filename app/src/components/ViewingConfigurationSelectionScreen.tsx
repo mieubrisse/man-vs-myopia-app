@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ViewingConfigurationSelectionScreen.css';
 import { HomeLinkButton } from './buttons/HomeLinkButton.tsx';
+import Button from './buttons/Button.tsx';
 
 interface ViewingConfiguration {
   id: string;
@@ -93,13 +94,14 @@ const ViewingConfigurationSelectionScreen: React.FC<ViewingConfigurationSelectio
         </div>
 
         <div className="action-buttons">
-          <button
-            className="start-assessment-button"
+          <Button
             onClick={handleStartAssessment}
             disabled={!selectedConfiguration}
+            variant="primary"
+            size={'large'}
           >
             Start Assessment
-          </button>
+          </Button>
         </div>
       </div>
     </div>

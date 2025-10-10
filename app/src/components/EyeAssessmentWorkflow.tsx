@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import LogMARChart from './LogMARChart';
 import EyeIntroScreen from './EyeIntroScreen';
 import BrightnessReminder from './BrightnessReminder';
+import LuxDeviceSelectionScreen from './LuxDeviceSelectionScreen';
 import {
   type Eye,
   EyeDataStorage,
   type EyeTestResult,
+  type LuxDevice,
   type VisionTest,
 } from '../lib/EyeDataStorage';
 import { UserLogMARGuessingEngine } from '../lib/UserLogMARGuessingEngine';
@@ -32,6 +34,7 @@ interface EyeAssessmentWorkflowProps {
 
 type WorkflowStateWithNoEngine =
   | { state: 'brightnessReminder' }
+  | { state: 'luxDeviceSelection' }
   | { state: 'leftEyeIntro' }
   | { state: 'rightEyeIntro' }
   | { state: 'complete' };
@@ -54,6 +57,8 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   const [, setRightEyeResult] = useState<EyeTestResult | null>(null);
   const [leftEyeStartTime, setLeftEyeStartTime] = useState<number>(0);
   const [rightEyeStartTime, setRightEyeStartTime] = useState<number>(0);
+  const [selectedLuxDevice, setSelectedLuxDevice] = useState<LuxDevice | null>(null);
+  const [luxMeasurement, setLuxMeasurement] = useState<number | null>(null);
 
   const handleLeftEyeComplete = (results: {
     logMARScore: number;
@@ -93,6 +98,8 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
         viewingConfigurationName: viewingConfiguration.name,
         distanceCentimeters: viewingConfiguration.distanceCentimeters,
         pixelsPerCm: calibrationData.pixelsPerCm,
+        luxDeviceId: selectedLuxDevice?.id,
+        luxMeasurement: luxMeasurement ?? undefined,
       };
 
       try {
@@ -120,9 +127,20 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     });
   };
 
+  const handleLuxDeviceSelection = (device: LuxDevice | null, measurement: number | null) => {
+    setSelectedLuxDevice(device);
+    setLuxMeasurement(measurement);
+    setWorkflowState({ state: 'leftEyeIntro' });
+  };
+
   switch (workflowState.state) {
     case 'brightnessReminder':
-      return <BrightnessReminder onContinue={() => setWorkflowState({ state: 'leftEyeIntro' })} />;
+      return (
+        <BrightnessReminder onContinue={() => setWorkflowState({ state: 'luxDeviceSelection' })} />
+      );
+
+    case 'luxDeviceSelection':
+      return <LuxDeviceSelectionScreen onContinue={handleLuxDeviceSelection} />;
 
     case 'leftEyeIntro':
       return <EyeIntroScreen eye="left" onStartTest={handleStartEyeTest('left')} />;
