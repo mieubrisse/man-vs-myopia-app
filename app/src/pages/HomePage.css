@@ -64,14 +64,29 @@
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.15);
 }
 
+.assessment-option {
+  background: #f2fff5;
+  border-color: #28a745;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+}
+
 .assessment-option:hover {
-  border-color: #007bff;
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+  border-color: #28a745;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.15);
 }
 
 .configurations-option:hover {
   border-color: #6f42c1;
   box-shadow: 0 4px 12px rgba(111, 66, 193, 0.15);
+}
+
+.lux-devices-option:hover {
+  border-color: #ffc107;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.15);
+}
+
+.home-option.double-span {
+  grid-column: span 2;
 }
 
 .home-option.disabled {
@@ -95,6 +110,10 @@
 @media (max-width: 768px) {
   .home-options {
     grid-template-columns: 1fr;
+  }
+
+  .home-option.double-span {
+    grid-column: span 1;
   }
 
   .home-container {

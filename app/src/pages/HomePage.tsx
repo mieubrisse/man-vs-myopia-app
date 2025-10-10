@@ -76,7 +76,18 @@ const HomePage: React.FC = () => {
           </button>
 
           <button
-            className={`home-option assessment-option ${!canStartAssessment ? 'disabled' : ''}`}
+            className="home-option lux-devices-option"
+            onClick={() => navigate(ROUTES.LUX_DEVICES)}
+          >
+            <div className="option-icon">💡</div>
+            <div className="option-content">
+              <h3>Lux Devices</h3>
+              <p>Manage your light measurement devices for ambient lighting</p>
+            </div>
+          </button>
+
+          <button
+            className={`home-option assessment-option double-span ${!canStartAssessment ? 'disabled' : ''}`}
             onClick={handleStartAssessment}
             disabled={!canStartAssessment}
             title={
