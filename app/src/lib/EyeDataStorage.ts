@@ -22,11 +22,18 @@ export const VisionTestSchema = z.object({
   pixelsPerCm: z.number(),
 });
 
+export const LuxDeviceSchema = z.object({
+  id: z.string(),
+  deviceName: z.string(),
+});
+
 export const UserDataSchema = z.object({
   userId: z.string(),
   testResults: z.array(VisionTestSchema),
+  luxDevices: z.array(LuxDeviceSchema).optional(),
 });
 
+export type LuxDevice = z.infer<typeof LuxDeviceSchema>;
 export type EyeTestResult = z.infer<typeof EyeTestResultSchema>;
 export type VisionTest = z.infer<typeof VisionTestSchema>;
 export type UserData = z.infer<typeof UserDataSchema>;
@@ -82,6 +89,40 @@ export class EyeDataStorage {
     }
 
     return [];
+  }
+
+  static async getAllLuxDevices(): Promise<LuxDevice[]> {
+    try {
+      const userData = await this.getCurrentUserData();
+      return userData.luxDevices || [];
+    } catch (error) {
+      console.error('Error reading lux device data from firebase:', error);
+      return [];
+    }
+  }
+
+  static async saveLuxDevice(luxDevice: LuxDevice): Promise<void> {
+    const userData = await this.getCurrentUserData();
+    userData.luxDevices = userData.luxDevices || [];
+    if (userData.luxDevices.some(device => device.id === luxDevice.id)) {
+      console.log('Lux device already exists, updating...');
+      const existingDeviceIndex = userData.luxDevices.findIndex(
+        device => device.id === luxDevice.id
+      );
+      userData.luxDevices[existingDeviceIndex] = luxDevice;
+    } else {
+      console.log('Lux device does not exist, adding new...');
+      userData.luxDevices.push(luxDevice);
+    }
+    await this.storeUserData(userData);
+  }
+
+  static async deleteLuxDevice(luxDeviceId: string): Promise<void> {
+    const userData = await this.getCurrentUserData();
+    if (userData.luxDevices) {
+      userData.luxDevices = userData.luxDevices.filter(device => device.id !== luxDeviceId);
+      await this.storeUserData(userData);
+    }
   }
 
   /**
