@@ -1,10 +1,14 @@
-import React, { useState } from "react";
-import LogMARChart from "./LogMARChart";
-import EyeIntroScreen from "./EyeIntroScreen";
-import BrightnessReminder from "./BrightnessReminder";
-import { ApiDataStorage } from "../lib/ApiDataStorage";
-import type { Eye, EyeTestResult, VisionTest } from "../lib/EyeDataStorage";
-import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
+import React, { useState } from 'react';
+import LogMARChart from './LogMARChart';
+import EyeIntroScreen from './EyeIntroScreen';
+import BrightnessReminder from './BrightnessReminder';
+import {
+  type Eye,
+  EyeDataStorage,
+  type EyeTestResult,
+  type VisionTest,
+} from '../lib/EyeDataStorage';
+import { UserLogMARGuessingEngine } from '../lib/UserLogMARGuessingEngine';
 
 interface CalibrationData {
   pixelsPerCm: number;
@@ -26,13 +30,19 @@ interface EyeAssessmentWorkflowProps {
   createGuessingEngine: (eye: Eye) => UserLogMARGuessingEngine;
 }
 
-type WorkflowState = 'brightnessReminder' | 'leftEyeIntro' | 'leftEyeTest' | 'rightEyeIntro' | 'rightEyeTest' | 'complete';
+type WorkflowState =
+  | 'brightnessReminder'
+  | 'leftEyeIntro'
+  | 'leftEyeTest'
+  | 'rightEyeIntro'
+  | 'rightEyeTest'
+  | 'complete';
 
 const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   calibrationData,
   viewingConfiguration,
   onWorkflowComplete,
-  createGuessingEngine
+  createGuessingEngine,
 }) => {
   const [workflowState, setWorkflowState] = useState<WorkflowState>('brightnessReminder');
   const [leftEyeResult, setLeftEyeResult] = useState<EyeTestResult | null>(null);
@@ -49,9 +59,9 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     const eyeData: EyeTestResult = {
       ...results,
       completedTimestamp: Date.now(),
-      startedTimestamp: leftEyeStartTime
+      startedTimestamp: leftEyeStartTime,
     };
-    
+
     setLeftEyeResult(eyeData);
     setWorkflowState('rightEyeIntro');
   };
@@ -65,11 +75,11 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     const eyeData: EyeTestResult = {
       ...results,
       completedTimestamp: Date.now(),
-      startedTimestamp: rightEyeStartTime
+      startedTimestamp: rightEyeStartTime,
     };
-    
+
     setRightEyeResult(eyeData);
-    
+
     // Save the complete test with all metadata
     if (leftEyeResult && viewingConfiguration && calibrationData) {
       const visionTest: VisionTest = {
@@ -77,41 +87,37 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
         rightEye: eyeData,
         viewingConfigurationName: viewingConfiguration.name,
         distanceCentimeters: viewingConfiguration.distanceCentimeters,
-        pixelsPerCm: calibrationData.pixelsPerCm
+        pixelsPerCm: calibrationData.pixelsPerCm,
       };
-      
+
       try {
-        await ApiDataStorage.saveTest(visionTest);
+        await EyeDataStorage.saveTest(visionTest);
         console.log('Saved test to API');
       } catch (error) {
         console.error('Failed to save vision test:', error);
         // Continue with workflow completion even if save fails
       }
     }
-    
+
     // Complete the workflow
     onWorkflowComplete({
       leftEye: leftEyeResult,
-      rightEye: eyeData
+      rightEye: eyeData,
     });
   };
 
   switch (workflowState) {
     case 'brightnessReminder':
-      return (
-        <BrightnessReminder 
-          onContinue={() => setWorkflowState('leftEyeIntro')}
-        />
-      );
+      return <BrightnessReminder onContinue={() => setWorkflowState('leftEyeIntro')} />;
 
     case 'leftEyeIntro':
       return (
-        <EyeIntroScreen 
-          eye="left" 
+        <EyeIntroScreen
+          eye="left"
           onStartTest={() => {
             setLeftEyeStartTime(Date.now());
             setWorkflowState('leftEyeTest');
-          }} 
+          }}
         />
       );
 
@@ -128,12 +134,12 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
 
     case 'rightEyeIntro':
       return (
-        <EyeIntroScreen 
-          eye="right" 
+        <EyeIntroScreen
+          eye="right"
           onStartTest={() => {
             setRightEyeStartTime(Date.now());
             setWorkflowState('rightEyeTest');
-          }} 
+          }}
         />
       );
 
