@@ -27,16 +27,19 @@ interface EyeAssessmentWorkflowProps {
     leftEye: EyeTestResult | null;
     rightEye: EyeTestResult | null;
   }) => void;
-  createGuessingEngine: (eye: Eye) => UserLogMARGuessingEngine;
+  createGuessingEngine: (eye: Eye) => Promise<UserLogMARGuessingEngine>;
 }
 
-type WorkflowState =
-  | 'brightnessReminder'
-  | 'leftEyeIntro'
-  | 'leftEyeTest'
-  | 'rightEyeIntro'
-  | 'rightEyeTest'
-  | 'complete';
+type WorkflowStateWithNoEngine =
+  | { state: 'brightnessReminder' }
+  | { state: 'leftEyeIntro' }
+  | { state: 'rightEyeIntro' }
+  | { state: 'complete' };
+type WorkflowStateWithEngine =
+  | { state: 'leftEyeTest'; engine: UserLogMARGuessingEngine }
+  | { state: 'rightEyeTest'; engine: UserLogMARGuessingEngine };
+
+type WorkflowState = WorkflowStateWithNoEngine | WorkflowStateWithEngine;
 
 const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   calibrationData,
@@ -44,7 +47,9 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   onWorkflowComplete,
   createGuessingEngine,
 }) => {
-  const [workflowState, setWorkflowState] = useState<WorkflowState>('brightnessReminder');
+  const [workflowState, setWorkflowState] = useState<WorkflowState>({
+    state: 'brightnessReminder',
+  });
   const [leftEyeResult, setLeftEyeResult] = useState<EyeTestResult | null>(null);
   const [, setRightEyeResult] = useState<EyeTestResult | null>(null);
   const [leftEyeStartTime, setLeftEyeStartTime] = useState<number>(0);
@@ -63,7 +68,7 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     };
 
     setLeftEyeResult(eyeData);
-    setWorkflowState('rightEyeIntro');
+    setWorkflowState({ state: 'rightEyeIntro' });
   };
 
   const handleRightEyeComplete = async (results: {
@@ -106,20 +111,21 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     });
   };
 
-  switch (workflowState) {
+  const handleStartEyeTest = (eye: Eye) => async () => {
+    const setEyeStartTime = eye === 'left' ? setLeftEyeStartTime : setRightEyeStartTime;
+    setEyeStartTime(Date.now());
+    setWorkflowState({
+      state: eye === 'left' ? 'leftEyeTest' : 'rightEyeTest',
+      engine: await createGuessingEngine(eye),
+    });
+  };
+
+  switch (workflowState.state) {
     case 'brightnessReminder':
-      return <BrightnessReminder onContinue={() => setWorkflowState('leftEyeIntro')} />;
+      return <BrightnessReminder onContinue={() => setWorkflowState({ state: 'leftEyeIntro' })} />;
 
     case 'leftEyeIntro':
-      return (
-        <EyeIntroScreen
-          eye="left"
-          onStartTest={() => {
-            setLeftEyeStartTime(Date.now());
-            setWorkflowState('leftEyeTest');
-          }}
-        />
-      );
+      return <EyeIntroScreen eye="left" onStartTest={handleStartEyeTest('left')} />;
 
     case 'leftEyeTest':
       return (
@@ -127,21 +133,13 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
           calibrationData={calibrationData}
           viewingConfiguration={viewingConfiguration}
           onAssessmentComplete={handleLeftEyeComplete}
-          guessingEngine={createGuessingEngine('left')}
+          guessingEngine={workflowState.engine!}
           currentEye="left"
         />
       );
 
     case 'rightEyeIntro':
-      return (
-        <EyeIntroScreen
-          eye="right"
-          onStartTest={() => {
-            setRightEyeStartTime(Date.now());
-            setWorkflowState('rightEyeTest');
-          }}
-        />
-      );
+      return <EyeIntroScreen eye="right" onStartTest={handleStartEyeTest('right')} />;
 
     case 'rightEyeTest':
       return (
@@ -149,7 +147,7 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
           calibrationData={calibrationData}
           viewingConfiguration={viewingConfiguration}
           onAssessmentComplete={handleRightEyeComplete}
-          guessingEngine={createGuessingEngine('right')}
+          guessingEngine={workflowState.engine}
           currentEye="right"
         />
       );
