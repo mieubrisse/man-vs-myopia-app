@@ -42,7 +42,7 @@ export class EyeDataStorage {
   }
 
   private static async getUserDataDocRef(userId: string): Promise<DocumentReference<UserData>> {
-    return doc(db, 'users', userId, 'data') as DocumentReference<UserData>;
+    return doc(db, 'users', userId, 'data', 'userData') as DocumentReference<UserData>;
   }
 
   private static async storeUserData(userData: UserData): Promise<void> {

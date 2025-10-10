@@ -67,13 +67,13 @@ function createNormalPriors(
 }
 
 // Factory function to create a guessing engine for a specific eye
-const createGuessingEngine = (eye: Eye): UserLogMARGuessingEngine => {
+const createGuessingEngine = async (eye: Eye): Promise<UserLogMARGuessingEngine> => {
   const numDistinctOptotypes = Object.keys(orientationToRotation).length;
 
   // Check for previous LogMAR data for this eye
   let storedLogMAR: number | null = null;
   try {
-    storedLogMAR = EyeDataStorage.getLatestLogMAR(eye);
+    storedLogMAR = await EyeDataStorage.getLatestLogMAR(eye);
     if (storedLogMAR !== null) {
       console.log(`Retrieved ${eye} eye LogMAR from storage:`, storedLogMAR);
     }
