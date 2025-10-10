@@ -66,3 +66,9 @@ TODO: Continuous deployment
 npm run build
 firebase deploy
 ```
+
+#### Data structure
+
+Firestore data is stored per user in a collection called `user_vision_data`, ie user `123` will have a document called `user_vision_data/123`.
+
+
