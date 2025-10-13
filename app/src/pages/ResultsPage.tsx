@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ResultsPage.css';
-import { ApiDataStorage } from '../lib/ApiDataStorage';
-import type { VisionTest } from '../lib/EyeDataStorage';
+import { EyeDataStorage, type VisionTest } from '../lib/EyeDataStorage';
 import { ROUTES } from '../lib/routes';
 import VisionTestResults from '../components/VisionTestResults';
 import { HomeLinkButton } from '../components/buttons/HomeLinkButton.tsx';
@@ -15,7 +14,7 @@ const ResultsPage: React.FC = () => {
 
   useEffect(() => {
     const loadTests = async () => {
-      const tests = await ApiDataStorage.getAllTests();
+      const tests = await EyeDataStorage.getAllTests();
       setVisionTests(tests);
     };
     loadTests();
@@ -28,7 +27,7 @@ const ResultsPage: React.FC = () => {
       )
     ) {
       try {
-        await ApiDataStorage.clearAllData();
+        await EyeDataStorage.clearAllData();
         setVisionTests([]);
       } catch (error) {
         console.error('Failed to clear data:', error);

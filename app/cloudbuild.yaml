@@ -19,7 +19,7 @@ steps:
       - '-c'
       - |
         npm install -g firebase-tools
-        firebase deploy --project=$PROJECT_ID--non-interactive
+        firebase deploy --project=$PROJECT_ID --non-interactive
 
 # Define timeout
 timeout: '1200s'  # 20 minutes
