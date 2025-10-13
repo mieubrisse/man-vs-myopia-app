@@ -1,0 +1,25 @@
+steps:
+  # Install dependencies using npm
+  - name: 'node:24'
+    dir: 'app'
+    entrypoint: 'npm'
+    args: ['ci']
+
+  # Build the application
+  - name: 'node:24'
+    dir: 'app'
+    entrypoint: 'npm'
+    args: ['run', 'build']
+
+  # Install Firebase CLI and deploy
+  - name: 'node:24  '
+    dir: 'app'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        npm install -g firebase-tools
+        firebase deploy --project=$PROJECT_ID--non-interactive
+
+# Define timeout
+timeout: '1200s'  # 20 minutes

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import "./ViewingConfigurationsPage.css";
-import { ROUTES } from "../lib/routes";
+import React, { useState, useEffect } from 'react';
+import './ViewingConfigurationsPage.css';
+import { HomeLinkButton } from '../components/buttons/HomeLinkButton.tsx';
+import Card from '../components/layout/Card.tsx';
+import PageLayout from '../components/layout/PageLayout.tsx';
 
 interface ViewingConfiguration {
   id: string;
@@ -10,23 +11,20 @@ interface ViewingConfiguration {
 }
 
 const ViewingConfigurationsPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [configurations, setConfigurations] = useState<ViewingConfiguration[]>(
-    []
-  );
-  const [newConfigName, setNewConfigName] = useState("");
-  const [newConfigDistance, setNewConfigDistance] = useState("");
-  const [error, setError] = useState("");
+  const [configurations, setConfigurations] = useState<ViewingConfiguration[]>([]);
+  const [newConfigName, setNewConfigName] = useState('');
+  const [newConfigDistance, setNewConfigDistance] = useState('');
+  const [error, setError] = useState('');
 
   // Load existing configurations on component mount
   useEffect(() => {
-    const savedConfigurations = localStorage.getItem("viewingConfigurations");
+    const savedConfigurations = localStorage.getItem('viewingConfigurations');
     if (savedConfigurations) {
       try {
         const parsed = JSON.parse(savedConfigurations);
         setConfigurations(parsed);
       } catch (e) {
-        console.error("Error loading viewing configurations:", e);
+        console.error('Error loading viewing configurations:', e);
       }
     }
   }, []);
@@ -39,22 +37,22 @@ const ViewingConfigurationsPage: React.FC = () => {
     e.preventDefault();
 
     if (!newConfigName.trim()) {
-      setError("Please enter a configuration name");
+      setError('Please enter a configuration name');
       return;
     }
 
     const distance = parseFloat(newConfigDistance);
     if (isNaN(distance) || distance <= 0) {
-      setError("Please enter a valid positive distance");
+      setError('Please enter a valid positive distance');
       return;
     }
 
     if (distance > 10000) {
-      setError("Distance seems too large. Please check your measurement.");
+      setError('Distance seems too large. Please check your measurement.');
       return;
     }
 
-    setError("");
+    setError('');
 
     const newConfiguration: ViewingConfiguration = {
       id: generateUUID(),
@@ -64,50 +62,34 @@ const ViewingConfigurationsPage: React.FC = () => {
 
     const updatedConfigurations = [...configurations, newConfiguration];
     setConfigurations(updatedConfigurations);
-    localStorage.setItem(
-      "viewingConfigurations",
-      JSON.stringify(updatedConfigurations)
-    );
+    localStorage.setItem('viewingConfigurations', JSON.stringify(updatedConfigurations));
 
     // Clear form
-    setNewConfigName("");
-    setNewConfigDistance("");
+    setNewConfigName('');
+    setNewConfigDistance('');
   };
 
   const handleDeleteConfiguration = (configId: string) => {
-    const updatedConfigurations = configurations.filter(
-      (config) => config.id !== configId
-    );
+    const updatedConfigurations = configurations.filter(config => config.id !== configId);
     setConfigurations(updatedConfigurations);
-    localStorage.setItem(
-      "viewingConfigurations",
-      JSON.stringify(updatedConfigurations)
-    );
+    localStorage.setItem('viewingConfigurations', JSON.stringify(updatedConfigurations));
   };
 
   return (
-    <div className="viewing-configurations-screen">
-      <div className="home-link">
-        <button onClick={() => navigate(ROUTES.HOME)} className="home-link-button">
-          ← Home
-        </button>
-      </div>
+    <PageLayout>
+      <HomeLinkButton />
 
-      <div className="viewing-configurations-container">
+      <Card className="viewing-configurations-container">
         <h1>Viewing Configurations</h1>
         <p className="viewing-configurations-description">
-          Manage your viewing configurations for different distances from the
-          screen.
+          Manage your viewing configurations for different distances from the screen.
         </p>
 
         <div className="viewing-configurations-content">
           <div className="left-column">
             <div className="add-configuration-section">
               <h2>Add New Configuration</h2>
-              <form
-                onSubmit={handleAddConfiguration}
-                className="add-configuration-form"
-              >
+              <form onSubmit={handleAddConfiguration} className="add-configuration-form">
                 <div className="form-row">
                   <div className="input-group">
                     <label htmlFor="config-name">Configuration Name:</label>
@@ -115,23 +97,21 @@ const ViewingConfigurationsPage: React.FC = () => {
                       id="config-name"
                       type="text"
                       value={newConfigName}
-                      onChange={(e) => setNewConfigName(e.target.value)}
+                      onChange={e => setNewConfigName(e.target.value)}
                       placeholder="e.g., Desktop, Bedroom, Office"
                       className="config-input"
                     />
                   </div>
 
                   <div className="input-group">
-                    <label htmlFor="config-distance">
-                      Distance (centimeters):
-                    </label>
+                    <label htmlFor="config-distance">Distance (centimeters):</label>
                     <input
                       id="config-distance"
                       type="number"
                       step="0.1"
                       min="0"
                       value={newConfigDistance}
-                      onChange={(e) => setNewConfigDistance(e.target.value)}
+                      onChange={e => setNewConfigDistance(e.target.value)}
                       placeholder="e.g., 60.0"
                       className="config-input"
                     />
@@ -151,12 +131,10 @@ const ViewingConfigurationsPage: React.FC = () => {
             <div className="configurations-list">
               <h2>Your Configurations</h2>
               {configurations.length === 0 ? (
-                <p className="no-configurations">
-                  No configurations added yet.
-                </p>
+                <p className="no-configurations">No configurations added yet.</p>
               ) : (
                 <div className="configurations-list-items">
-                  {configurations.map((config) => (
+                  {configurations.map(config => (
                     <div key={config.id} className="configuration-card">
                       <div className="configuration-content">
                         <h3>{config.name}</h3>
@@ -176,8 +154,8 @@ const ViewingConfigurationsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Card>
+    </PageLayout>
   );
 };
 

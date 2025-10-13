@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import "./ResultsPage.css";
-import { ApiDataStorage } from "../lib/ApiDataStorage";
-import type { VisionTest } from "../lib/EyeDataStorage";
-import { ROUTES } from "../lib/routes";
-import VisionTestResults from "../components/VisionTestResults";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './ResultsPage.css';
+import { ApiDataStorage } from '../lib/ApiDataStorage';
+import type { VisionTest } from '../lib/EyeDataStorage';
+import { ROUTES } from '../lib/routes';
+import VisionTestResults from '../components/VisionTestResults';
+import { HomeLinkButton } from '../components/buttons/HomeLinkButton.tsx';
+import Card from '../components/layout/Card.tsx';
+import PageLayout from '../components/layout/PageLayout.tsx';
 
 const ResultsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,9 +21,12 @@ const ResultsPage: React.FC = () => {
     loadTests();
   }, []);
 
-
   const handleClearData = async () => {
-    if (window.confirm('Are you sure you want to clear all assessment data? This action cannot be undone.')) {
+    if (
+      window.confirm(
+        'Are you sure you want to clear all assessment data? This action cannot be undone.'
+      )
+    ) {
       try {
         await ApiDataStorage.clearAllData();
         setVisionTests([]);
@@ -32,14 +38,10 @@ const ResultsPage: React.FC = () => {
   };
 
   return (
-    <div className="results-page">
-      <div className="home-link">
-        <button onClick={() => navigate(ROUTES.HOME)} className="home-link-button">
-          ← Home
-        </button>
-      </div>
+    <PageLayout>
+      <HomeLinkButton />
 
-      <div className="results-container">
+      <Card className="results-container">
         <div className="results-header">
           <h1>Assessment Results</h1>
           <p className="results-description">
@@ -48,15 +50,15 @@ const ResultsPage: React.FC = () => {
         </div>
 
         <div className="results-content">
-          <VisionTestResults 
+          <VisionTestResults
             visionTests={visionTests}
             showActions={true}
             onClearData={handleClearData}
           />
-          
+
           {visionTests.length === 0 && (
             <div className="no-results-actions">
-              <button 
+              <button
                 onClick={() => navigate(ROUTES.ASSESSMENT)}
                 className="start-assessment-button"
               >
@@ -65,8 +67,8 @@ const ResultsPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </Card>
+    </PageLayout>
   );
 };
 

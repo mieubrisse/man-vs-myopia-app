@@ -9,13 +9,6 @@
   overflow: hidden;
 }
 
-.home-link {
-  position: absolute;
-  top: 2rem;
-  left: 2rem;
-  z-index: 10;
-}
-
 .home-link-button {
   background: #6c757d;
   color: white;

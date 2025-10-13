@@ -1,0 +1,89 @@
+.login-container, .signup-container {
+    max-width: 400px;
+    width: 100%;
+    margin: 2rem auto;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.error-message {
+    color: #d32f2f;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background-color: #ffebee;
+    border-radius: 4px;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input {
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+button {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:disabled {
+    background-color: #90caf9;
+    cursor: not-allowed;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+}
+
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #ccc;
+}
+
+.divider span {
+    padding: 0 0.5rem;
+    color: #666;
+}
+
+.google-button {
+    background-color: #fff;
+    color: #757575;
+    border: 1px solid #ccc;
+    margin-bottom: 1rem;
+}
+
+.signup-link, .login-link {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.signup-link a, .login-link a {
+    color: #1976d2;
+    text-decoration: none;
+}
+
+.signup-link a:hover, .login-link a:hover {
+    text-decoration: underline;
+}
