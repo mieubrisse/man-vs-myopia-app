@@ -1,13 +1,11 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import ViewingConfigurationSelectionScreen from "../components/ViewingConfigurationSelectionScreen";
-import EyeAssessmentWorkflow from "../components/EyeAssessmentWorkflow";
-import AssessmentResultsScreen from "../components/AssessmentResultsScreen";
-import { EyeDataStorage } from "../lib/EyeDataStorage";
-import type { Eye, EyeTestResult } from "../lib/EyeDataStorage";
-import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
-import { orientationToRotation } from "../components/LandoltCOptotype";
-import { ROUTES } from "../lib/routes";
+import React, { useState } from 'react';
+import ViewingConfigurationSelectionScreen from '../components/ViewingConfigurationSelectionScreen';
+import EyeAssessmentWorkflow from '../components/EyeAssessmentWorkflow';
+import AssessmentResultsScreen from '../components/AssessmentResultsScreen';
+import { EyeDataStorage } from '../lib/EyeDataStorage';
+import type { Eye, EyeTestResult } from '../lib/EyeDataStorage';
+import { UserLogMARGuessingEngine } from '../lib/UserLogMARGuessingEngine';
+import { orientationToRotation } from '../components/LandoltCOptotype';
 
 // LogMAR engine configuration constants
 const LOGMAR_CONFIG = {
@@ -21,7 +19,7 @@ const LOGMAR_CONFIG = {
 // Helper function to normalize a vector of probabilities
 function normalizeVector(vector: number[]): number[] {
   const sum = vector.reduce((prevVal, curr) => prevVal + curr, 0);
-  return sum ? vector.map((val) => val / sum) : vector;
+  return sum ? vector.map(val => val / sum) : vector;
 }
 
 /**
@@ -35,39 +33,43 @@ function createNormalPriors(
   stepSize: number
 ): Map<number, number> {
   const priors = new Map<number, number>();
-  
+
   // Generate LogMAR values using pure integer arithmetic to avoid floating point errors
   const stepSizeThousandths = Math.round(stepSize * 1000);
   const minLogMARThousandths = Math.round(minLogMAR * 1000);
   const maxLogMARThousandths = Math.round(maxLogMAR * 1000);
   const logMARValues: number[] = [];
-  
-  for (let logMARTh = minLogMARThousandths; logMARTh <= maxLogMARThousandths; logMARTh += stepSizeThousandths) {
+
+  for (
+    let logMARTh = minLogMARThousandths;
+    logMARTh <= maxLogMARThousandths;
+    logMARTh += stepSizeThousandths
+  ) {
     const logMAR = logMARTh / 1000;
     logMARValues.push(logMAR);
   }
-  
+
   // Calculate normal distribution probabilities
   const unnormalizedProbabilities: number[] = logMARValues.map(logMAR => {
     const exponent = -0.5 * Math.pow((logMAR - centerLogMAR) / standardDeviation, 2);
     return Math.exp(exponent);
   });
-  
+
   // Normalize probabilities
   const normalizedProbabilities = normalizeVector(unnormalizedProbabilities);
-  
+
   // Create the Map
   for (let i = 0; i < logMARValues.length; i++) {
     priors.set(logMARValues[i], normalizedProbabilities[i]);
   }
-  
+
   return priors;
 }
 
 // Factory function to create a guessing engine for a specific eye
 const createGuessingEngine = (eye: Eye): UserLogMARGuessingEngine => {
   const numDistinctOptotypes = Object.keys(orientationToRotation).length;
-  
+
   // Check for previous LogMAR data for this eye
   let storedLogMAR: number | null = null;
   try {
@@ -84,27 +86,31 @@ const createGuessingEngine = (eye: Eye): UserLogMARGuessingEngine => {
   if (storedLogMAR !== null) {
     // Use normal distribution centered on previous LogMAR
     alphaPriors = createNormalPriors(
-      storedLogMAR, 
-      LOGMAR_CONFIG.NORMAL_PRIOR_STANDARD_DEVIATION, 
-      LOGMAR_CONFIG.MIN_LOGMAR, 
-      LOGMAR_CONFIG.MAX_LOGMAR, 
+      storedLogMAR,
+      LOGMAR_CONFIG.NORMAL_PRIOR_STANDARD_DEVIATION,
+      LOGMAR_CONFIG.MIN_LOGMAR,
+      LOGMAR_CONFIG.MAX_LOGMAR,
       LOGMAR_CONFIG.STEP_SIZE
     );
     console.log('Initialized with normal priors centered at stored LogMAR:', storedLogMAR);
   } else {
     // Use uniform prior
     alphaPriors = new Map<number, number>();
-    
+
     const stepSizeThousandths = Math.round(LOGMAR_CONFIG.STEP_SIZE * 1000);
     const minLogMARThousandths = Math.round(LOGMAR_CONFIG.MIN_LOGMAR * 1000);
     const maxLogMARThousandths = Math.round(LOGMAR_CONFIG.MAX_LOGMAR * 1000);
     const logMARValues: number[] = [];
-    
-    for (let logMARTh = minLogMARThousandths; logMARTh <= maxLogMARThousandths; logMARTh += stepSizeThousandths) {
+
+    for (
+      let logMARTh = minLogMARThousandths;
+      logMARTh <= maxLogMARThousandths;
+      logMARTh += stepSizeThousandths
+    ) {
       const logMAR = logMARTh / 1000;
       logMARValues.push(logMAR);
     }
-    
+
     const probability = 1 / logMARValues.length;
     for (const logMAR of logMARValues) {
       alphaPriors.set(logMAR, probability);
@@ -112,13 +118,16 @@ const createGuessingEngine = (eye: Eye): UserLogMARGuessingEngine => {
     console.log('Initialized with uniform priors (no stored LogMAR found)');
   }
 
-  return new UserLogMARGuessingEngine(alphaPriors, numDistinctOptotypes, LOGMAR_CONFIG.CONFIDENCE_INTERVAL);
+  return new UserLogMARGuessingEngine(
+    alphaPriors,
+    numDistinctOptotypes,
+    LOGMAR_CONFIG.CONFIDENCE_INTERVAL
+  );
 };
 
 type AssessmentState = 'configSelection' | 'assessment' | 'results';
 
 const AssessmentPage: React.FC = () => {
-  const navigate = useNavigate();
   const [assessmentState, setAssessmentState] = useState<AssessmentState>('configSelection');
   const [calibrationData, setCalibrationData] = useState<{
     pixelsPerCm: number;
@@ -139,10 +148,10 @@ const AssessmentPage: React.FC = () => {
     distanceCentimeters: number;
   }) => {
     setSelectedViewingConfiguration(configuration);
-    localStorage.setItem("lastSelectedViewingConfigurationId", configuration.id);
+    localStorage.setItem('lastSelectedViewingConfigurationId', configuration.id);
 
     // Get calibration data from localStorage
-    const pixelsPerCmString = localStorage.getItem("pixelsPerCm");
+    const pixelsPerCmString = localStorage.getItem('pixelsPerCm');
     if (pixelsPerCmString) {
       const pixelsPerCm = parseFloat(pixelsPerCmString);
       setCalibrationData({
@@ -165,7 +174,6 @@ const AssessmentPage: React.FC = () => {
     case 'configSelection':
       return (
         <ViewingConfigurationSelectionScreen
-          onGoHome={() => navigate(ROUTES.HOME)}
           onStartAssessment={handleViewingConfigurationSelected}
         />
       );
@@ -183,7 +191,6 @@ const AssessmentPage: React.FC = () => {
     case 'results':
       return (
         <AssessmentResultsScreen
-          onGoHome={() => navigate(ROUTES.HOME)}
           results={assessmentResults}
           viewingConfiguration={selectedViewingConfiguration}
           calibrationData={calibrationData}

@@ -1,7 +1,9 @@
 export const ROUTES = {
-  HOME: '/',
-  CALIBRATION: '/calibration',
-  VIEWING_CONFIGURATIONS: '/viewing-configurations',
-  ASSESSMENT: '/assessment',
-  RESULTS: '/results',
+  HOME: '/app',
+  CALIBRATION: '/app/calibration',
+  VIEWING_CONFIGURATIONS: '/app/viewing-configurations',
+  ASSESSMENT: '/app/assessment',
+  RESULTS: '/app/results',
+  LOGIN: '/login',
+  SIGNUP: '/signup',
 } as const;
