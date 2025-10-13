@@ -1,5 +1,5 @@
-import React from "react";
-import type { EyeTestResult } from "../lib/EyeDataStorage";
+import React from 'react';
+import type { EyeTestResult } from '../lib/EyeDataStorage';
 
 interface TestCardProps {
   leftEye: EyeTestResult | null;
@@ -7,6 +7,8 @@ interface TestCardProps {
   viewingConfigurationName?: string;
   distanceCentimeters?: number;
   pixelsPerCm?: number;
+  luxMeasurement?: number;
+  luxDevice?: string;
   timestamp?: number;
   isLatest?: boolean;
   className?: string;
@@ -18,28 +20,30 @@ const TestCard: React.FC<TestCardProps> = ({
   viewingConfigurationName,
   distanceCentimeters,
   pixelsPerCm,
+  luxMeasurement,
+  luxDevice,
   timestamp,
   isLatest = false,
-  className = "",
+  className = '',
 }) => {
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
   };
 
   const getVisionLevel = (score: number): string => {
-    if (score <= 0.0) return "Excellent";
-    if (score <= 0.3) return "Good";
-    if (score <= 0.5) return "Fair";
-    if (score <= 0.7) return "Poor";
-    return "Very Poor";
+    if (score <= 0.0) return 'Excellent';
+    if (score <= 0.3) return 'Good';
+    if (score <= 0.5) return 'Fair';
+    if (score <= 0.7) return 'Poor';
+    return 'Very Poor';
   };
 
   const getVisionColor = (score: number): string => {
-    if (score <= 0.0) return "#28a745"; // Green
-    if (score <= 0.3) return "#17a2b8"; // Blue
-    if (score <= 0.5) return "#ffc107"; // Yellow
-    if (score <= 0.7) return "#fd7e14"; // Orange
-    return "#dc3545"; // Red
+    if (score <= 0.0) return '#28a745'; // Green
+    if (score <= 0.3) return '#17a2b8'; // Blue
+    if (score <= 0.5) return '#ffc107'; // Yellow
+    if (score <= 0.7) return '#fd7e14'; // Orange
+    return '#dc3545'; // Red
   };
 
   const formatDuration = (startTime: number, endTime: number) => {
@@ -50,9 +54,11 @@ const TestCard: React.FC<TestCardProps> = ({
   };
 
   // Use timestamp from props or derive from eye results
-  const displayTimestamp = timestamp || (leftEye && rightEye ? 
-    Math.max(leftEye.completedTimestamp, rightEye.completedTimestamp) : 
-    leftEye?.completedTimestamp || rightEye?.completedTimestamp || Date.now());
+  const displayTimestamp =
+    timestamp ||
+    (leftEye && rightEye
+      ? Math.max(leftEye.completedTimestamp, rightEye.completedTimestamp)
+      : leftEye?.completedTimestamp || rightEye?.completedTimestamp || Date.now());
 
   return (
     <div className={`test-card ${className}`}>
@@ -67,16 +73,14 @@ const TestCard: React.FC<TestCardProps> = ({
             {viewingConfigurationName && (
               <span className="config-name">{viewingConfigurationName}</span>
             )}
-            {distanceCentimeters && (
-              <span className="distance">{distanceCentimeters}cm</span>
-            )}
-            {pixelsPerCm && (
-              <span className="calibration">{pixelsPerCm.toFixed(1)} px/cm</span>
-            )}
+            {distanceCentimeters && <span className="distance">{distanceCentimeters}cm</span>}
+            {pixelsPerCm && <span className="calibration">{pixelsPerCm.toFixed(1)} px/cm</span>}
+            {luxDevice && <span className="config-name">{luxDevice}</span>}
+            {luxMeasurement && <span className="distance">{luxMeasurement}lx</span>}
           </div>
         </div>
       )}
-      
+
       {/* Test Content */}
       <div className="test-content">
         <div className="eye-results-grid">
@@ -86,10 +90,16 @@ const TestCard: React.FC<TestCardProps> = ({
             {leftEye ? (
               <>
                 <div className="logmar-display">
-                  <div className="logmar-score" style={{ color: getVisionColor(leftEye.logMARScore) }}>
+                  <div
+                    className="logmar-score"
+                    style={{ color: getVisionColor(leftEye.logMARScore) }}
+                  >
                     {leftEye.logMARScore.toFixed(3)}
                   </div>
-                  <div className="vision-level" style={{ color: getVisionColor(leftEye.logMARScore) }}>
+                  <div
+                    className="vision-level"
+                    style={{ color: getVisionColor(leftEye.logMARScore) }}
+                  >
                     {getVisionLevel(leftEye.logMARScore)}
                   </div>
                 </div>
@@ -97,10 +107,9 @@ const TestCard: React.FC<TestCardProps> = ({
                   <div className="detail-row">
                     <span className="detail-label">Accuracy:</span>
                     <span className="detail-value">
-                      {leftEye.attemptedLetters > 0 
+                      {leftEye.attemptedLetters > 0
                         ? `${Math.round((leftEye.correctLetters / leftEye.attemptedLetters) * 100)}%`
-                        : 'N/A'
-                      }
+                        : 'N/A'}
                     </span>
                   </div>
                   <div className="detail-row">
@@ -128,10 +137,16 @@ const TestCard: React.FC<TestCardProps> = ({
             {rightEye ? (
               <>
                 <div className="logmar-display">
-                  <div className="logmar-score" style={{ color: getVisionColor(rightEye.logMARScore) }}>
+                  <div
+                    className="logmar-score"
+                    style={{ color: getVisionColor(rightEye.logMARScore) }}
+                  >
                     {rightEye.logMARScore.toFixed(3)}
                   </div>
-                  <div className="vision-level" style={{ color: getVisionColor(rightEye.logMARScore) }}>
+                  <div
+                    className="vision-level"
+                    style={{ color: getVisionColor(rightEye.logMARScore) }}
+                  >
                     {getVisionLevel(rightEye.logMARScore)}
                   </div>
                 </div>
@@ -139,10 +154,9 @@ const TestCard: React.FC<TestCardProps> = ({
                   <div className="detail-row">
                     <span className="detail-label">Accuracy:</span>
                     <span className="detail-value">
-                      {rightEye.attemptedLetters > 0 
+                      {rightEye.attemptedLetters > 0
                         ? `${Math.round((rightEye.correctLetters / rightEye.attemptedLetters) * 100)}%`
-                        : 'N/A'
-                      }
+                        : 'N/A'}
                     </span>
                   </div>
                   <div className="detail-row">

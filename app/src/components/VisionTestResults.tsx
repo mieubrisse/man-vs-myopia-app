@@ -1,10 +1,11 @@
-import React from "react";
-import "./VisionTestResults.css";
-import TestCard from "./TestCard";
-import type { VisionTest, EyeTestResult } from "../lib/EyeDataStorage";
+import React from 'react';
+import './VisionTestResults.css';
+import TestCard from './TestCard';
+import type { VisionTest, EyeTestResult, LuxDevice } from '../lib/EyeDataStorage';
 
 interface VisionTestResultsProps {
   visionTests?: VisionTest[];
+  luxDevices?: LuxDevice[];
   singleResult?: {
     leftEye: EyeTestResult | null;
     rightEye: EyeTestResult | null;
@@ -18,21 +19,21 @@ interface VisionTestResultsProps {
 
 const VisionTestResults: React.FC<VisionTestResultsProps> = ({
   visionTests = [],
+  luxDevices = [],
   singleResult,
   showActions = false,
   onClearData,
-  className = "",
+  className = '',
   title,
   description,
 }) => {
-
   // Handle single result case (immediate post-assessment)
   if (singleResult) {
     return (
       <div className={`vision-test-results ${className}`}>
         {title && <h1>{title}</h1>}
         {description && <p className="results-description">{description}</p>}
-        
+
         <TestCard
           leftEye={singleResult.leftEye}
           rightEye={singleResult.rightEye}
@@ -57,7 +58,7 @@ const VisionTestResults: React.FC<VisionTestResultsProps> = ({
     <div className={`vision-test-results ${className}`}>
       {showActions && visionTests.length > 0 && onClearData && (
         <div className="results-actions">
-          <button 
+          <button
             onClick={onClearData}
             className="clear-data-button"
             title="Clear all assessment data"
@@ -66,11 +67,14 @@ const VisionTestResults: React.FC<VisionTestResultsProps> = ({
           </button>
         </div>
       )}
-      
+
       <div className="tests-history">
         {visionTests.map((test, index) => {
-          const testDate = Math.max(test.leftEye.completedTimestamp, test.rightEye.completedTimestamp);
-          
+          const testDate = Math.max(
+            test.leftEye.completedTimestamp,
+            test.rightEye.completedTimestamp
+          );
+
           return (
             <TestCard
               key={`${test.leftEye.completedTimestamp}-${test.rightEye.completedTimestamp}`}
@@ -79,6 +83,8 @@ const VisionTestResults: React.FC<VisionTestResultsProps> = ({
               viewingConfigurationName={test.viewingConfigurationName}
               distanceCentimeters={test.distanceCentimeters}
               pixelsPerCm={test.pixelsPerCm}
+              luxMeasurement={test.luxMeasurement}
+              luxDevice={luxDevices.find(d => d.id === test.luxDeviceId)?.deviceName}
               timestamp={testDate}
               isLatest={index === 0}
             />

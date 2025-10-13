@@ -11,6 +11,7 @@ import { ROUTES } from './lib/routes';
 import { AuthProvider } from './lib/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute.tsx';
 import SignupPage from './pages/SignupPage.tsx';
+import LuxDevicesPage from './pages/LuxDevicesPage.tsx';
 
 const AppInner: React.FC = () => {
   return (
@@ -37,6 +38,14 @@ const AppInner: React.FC = () => {
         element={
           <ProtectedRoute>
             <ViewingConfigurationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path={ROUTES.LUX_DEVICES}
+        element={
+          <ProtectedRoute>
+            <LuxDevicesPage />
           </ProtectedRoute>
         }
       />
