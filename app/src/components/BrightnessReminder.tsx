@@ -1,5 +1,6 @@
-import React from "react";
-import "./BrightnessReminder.css";
+import React from 'react';
+import './BrightnessReminder.css';
+import Button from './buttons/Button.tsx';
 
 interface BrightnessReminderProps {
   onContinue: () => void;
@@ -17,9 +18,9 @@ const BrightnessReminder: React.FC<BrightnessReminderProps> = ({ onContinue }) =
           </p>
         </div>
 
-        <button className="continue-button" onClick={onContinue}>
+        <Button variant="success" onClick={onContinue} size={'large'}>
           Continue
-        </button>
+        </Button>
       </div>
     </div>
   );

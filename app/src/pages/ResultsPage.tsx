@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ResultsPage.css';
-import { EyeDataStorage, type VisionTest } from '../lib/EyeDataStorage';
+import { EyeDataStorage, type UserData } from '../lib/EyeDataStorage';
 import { ROUTES } from '../lib/routes';
 import VisionTestResults from '../components/VisionTestResults';
 import { HomeLinkButton } from '../components/buttons/HomeLinkButton.tsx';
@@ -10,12 +10,12 @@ import PageLayout from '../components/layout/PageLayout.tsx';
 
 const ResultsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [visionTests, setVisionTests] = useState<VisionTest[]>([]);
+  const [userData, setUserData] = useState<UserData>();
 
   useEffect(() => {
     const loadTests = async () => {
-      const tests = await EyeDataStorage.getAllTests();
-      setVisionTests(tests);
+      const userData = await EyeDataStorage.getCurrentUserData();
+      setUserData(userData);
     };
     loadTests();
   }, []);
@@ -28,7 +28,9 @@ const ResultsPage: React.FC = () => {
     ) {
       try {
         await EyeDataStorage.clearAllData();
-        setVisionTests([]);
+        if (userData) {
+          setUserData({ ...userData, testResults: [] });
+        }
       } catch (error) {
         console.error('Failed to clear data:', error);
         alert('Failed to clear data. Please try again.');
@@ -50,12 +52,13 @@ const ResultsPage: React.FC = () => {
 
         <div className="results-content">
           <VisionTestResults
-            visionTests={visionTests}
+            visionTests={userData?.testResults || []}
+            luxDevices={userData?.luxDevices || []}
             showActions={true}
             onClearData={handleClearData}
           />
 
-          {visionTests.length === 0 && (
+          {userData?.testResults.length === 0 && (
             <div className="no-results-actions">
               <button
                 onClick={() => navigate(ROUTES.ASSESSMENT)}
