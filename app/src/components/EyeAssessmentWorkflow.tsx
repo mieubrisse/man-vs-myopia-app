@@ -1,10 +1,14 @@
-import React, { useState } from "react";
-import LogMARChart from "./LogMARChart";
-import EyeIntroScreen from "./EyeIntroScreen";
-import BrightnessReminder from "./BrightnessReminder";
-import { ApiDataStorage } from "../lib/ApiDataStorage";
-import type { Eye, EyeTestResult, VisionTest } from "../lib/EyeDataStorage";
-import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
+import React, { useState } from 'react';
+import LogMARChart from './LogMARChart';
+import EyeIntroScreen from './EyeIntroScreen';
+import BrightnessReminder from './BrightnessReminder';
+import {
+  type Eye,
+  EyeDataStorage,
+  type EyeTestResult,
+  type VisionTest,
+} from '../lib/EyeDataStorage';
+import { UserLogMARGuessingEngine } from '../lib/UserLogMARGuessingEngine';
 
 interface CalibrationData {
   pixelsPerCm: number;
@@ -23,18 +27,29 @@ interface EyeAssessmentWorkflowProps {
     leftEye: EyeTestResult | null;
     rightEye: EyeTestResult | null;
   }) => void;
-  createGuessingEngine: (eye: Eye) => UserLogMARGuessingEngine;
+  createGuessingEngine: (eye: Eye) => Promise<UserLogMARGuessingEngine>;
 }
 
-type WorkflowState = 'brightnessReminder' | 'leftEyeIntro' | 'leftEyeTest' | 'rightEyeIntro' | 'rightEyeTest' | 'complete';
+type WorkflowStateWithNoEngine =
+  | { state: 'brightnessReminder' }
+  | { state: 'leftEyeIntro' }
+  | { state: 'rightEyeIntro' }
+  | { state: 'complete' };
+type WorkflowStateWithEngine =
+  | { state: 'leftEyeTest'; engine: UserLogMARGuessingEngine }
+  | { state: 'rightEyeTest'; engine: UserLogMARGuessingEngine };
+
+type WorkflowState = WorkflowStateWithNoEngine | WorkflowStateWithEngine;
 
 const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
   calibrationData,
   viewingConfiguration,
   onWorkflowComplete,
-  createGuessingEngine
+  createGuessingEngine,
 }) => {
-  const [workflowState, setWorkflowState] = useState<WorkflowState>('brightnessReminder');
+  const [workflowState, setWorkflowState] = useState<WorkflowState>({
+    state: 'brightnessReminder',
+  });
   const [leftEyeResult, setLeftEyeResult] = useState<EyeTestResult | null>(null);
   const [, setRightEyeResult] = useState<EyeTestResult | null>(null);
   const [leftEyeStartTime, setLeftEyeStartTime] = useState<number>(0);
@@ -49,11 +64,11 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     const eyeData: EyeTestResult = {
       ...results,
       completedTimestamp: Date.now(),
-      startedTimestamp: leftEyeStartTime
+      startedTimestamp: leftEyeStartTime,
     };
-    
+
     setLeftEyeResult(eyeData);
-    setWorkflowState('rightEyeIntro');
+    setWorkflowState({ state: 'rightEyeIntro' });
   };
 
   const handleRightEyeComplete = async (results: {
@@ -65,11 +80,11 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     const eyeData: EyeTestResult = {
       ...results,
       completedTimestamp: Date.now(),
-      startedTimestamp: rightEyeStartTime
+      startedTimestamp: rightEyeStartTime,
     };
-    
+
     setRightEyeResult(eyeData);
-    
+
     // Save the complete test with all metadata
     if (leftEyeResult && viewingConfiguration && calibrationData) {
       const visionTest: VisionTest = {
@@ -77,43 +92,40 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
         rightEye: eyeData,
         viewingConfigurationName: viewingConfiguration.name,
         distanceCentimeters: viewingConfiguration.distanceCentimeters,
-        pixelsPerCm: calibrationData.pixelsPerCm
+        pixelsPerCm: calibrationData.pixelsPerCm,
       };
-      
+
       try {
-        await ApiDataStorage.saveTest(visionTest);
+        await EyeDataStorage.saveTest(visionTest);
         console.log('Saved test to API');
       } catch (error) {
         console.error('Failed to save vision test:', error);
         // Continue with workflow completion even if save fails
       }
     }
-    
+
     // Complete the workflow
     onWorkflowComplete({
       leftEye: leftEyeResult,
-      rightEye: eyeData
+      rightEye: eyeData,
     });
   };
 
-  switch (workflowState) {
+  const handleStartEyeTest = (eye: Eye) => async () => {
+    const setEyeStartTime = eye === 'left' ? setLeftEyeStartTime : setRightEyeStartTime;
+    setEyeStartTime(Date.now());
+    setWorkflowState({
+      state: eye === 'left' ? 'leftEyeTest' : 'rightEyeTest',
+      engine: await createGuessingEngine(eye),
+    });
+  };
+
+  switch (workflowState.state) {
     case 'brightnessReminder':
-      return (
-        <BrightnessReminder 
-          onContinue={() => setWorkflowState('leftEyeIntro')}
-        />
-      );
+      return <BrightnessReminder onContinue={() => setWorkflowState({ state: 'leftEyeIntro' })} />;
 
     case 'leftEyeIntro':
-      return (
-        <EyeIntroScreen 
-          eye="left" 
-          onStartTest={() => {
-            setLeftEyeStartTime(Date.now());
-            setWorkflowState('leftEyeTest');
-          }} 
-        />
-      );
+      return <EyeIntroScreen eye="left" onStartTest={handleStartEyeTest('left')} />;
 
     case 'leftEyeTest':
       return (
@@ -121,21 +133,13 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
           calibrationData={calibrationData}
           viewingConfiguration={viewingConfiguration}
           onAssessmentComplete={handleLeftEyeComplete}
-          guessingEngine={createGuessingEngine('left')}
+          guessingEngine={workflowState.engine!}
           currentEye="left"
         />
       );
 
     case 'rightEyeIntro':
-      return (
-        <EyeIntroScreen 
-          eye="right" 
-          onStartTest={() => {
-            setRightEyeStartTime(Date.now());
-            setWorkflowState('rightEyeTest');
-          }} 
-        />
-      );
+      return <EyeIntroScreen eye="right" onStartTest={handleStartEyeTest('right')} />;
 
     case 'rightEyeTest':
       return (
@@ -143,7 +147,7 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
           calibrationData={calibrationData}
           viewingConfiguration={viewingConfiguration}
           onAssessmentComplete={handleRightEyeComplete}
-          guessingEngine={createGuessingEngine('right')}
+          guessingEngine={workflowState.engine}
           currentEye="right"
         />
       );

@@ -57,7 +57,7 @@ export default tseslint.config({
 
 To initialise firebase for local development run `npm install -g firebase-tools` and then `firebase login` and `firebase init`.
 
-To launch the local firebase emulator run `firebase emulators:start`.
+To launch the local firebase emulator run `firebase emulators:start --export-on-exit --import ./firebase-data-temp`.
 
 #### Deployment
 
@@ -66,3 +66,9 @@ TODO: Continuous deployment
 npm run build
 firebase deploy
 ```
+
+#### Data structure
+
+Firestore data is stored per user in a collection called `user_vision_data`, ie user `123` will have a document called `user_vision_data/123`.
+
+
