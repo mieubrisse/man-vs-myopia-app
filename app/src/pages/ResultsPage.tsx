@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './ResultsPage.css';
 import { EyeDataStorage, type UserData } from '../lib/EyeDataStorage';
 import { ROUTES } from '../lib/routes';
-import VisionTestResults from '../components/VisionTestResults';
+import VisionTestResults from '../components/assessmentWorkflow/VisionTestResults.tsx';
 import { HomeLinkButton } from '../components/buttons/HomeLinkButton.tsx';
 import Card from '../components/layout/Card.tsx';
 import PageLayout from '../components/layout/PageLayout.tsx';

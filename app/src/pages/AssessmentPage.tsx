@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
-import ViewingConfigurationSelectionScreen from '../components/ViewingConfigurationSelectionScreen';
+import React from 'react';
 import EyeAssessmentWorkflow from '../components/EyeAssessmentWorkflow';
-import AssessmentResultsScreen from '../components/AssessmentResultsScreen';
 import { EyeDataStorage } from '../lib/EyeDataStorage';
-import type { Eye, EyeTestResult } from '../lib/EyeDataStorage';
+import type { Eye } from '../lib/EyeDataStorage';
 import { UserLogMARGuessingEngine } from '../lib/UserLogMARGuessingEngine';
 import { orientationToRotation } from '../components/LandoltCOptotype';
 
@@ -125,81 +123,8 @@ const createGuessingEngine = async (eye: Eye): Promise<UserLogMARGuessingEngine>
   );
 };
 
-type AssessmentState = 'configSelection' | 'assessment' | 'results';
-
 const AssessmentPage: React.FC = () => {
-  const [assessmentState, setAssessmentState] = useState<AssessmentState>('configSelection');
-  const [calibrationData, setCalibrationData] = useState<{
-    pixelsPerCm: number;
-  } | null>(null);
-  const [selectedViewingConfiguration, setSelectedViewingConfiguration] = useState<{
-    id: string;
-    name: string;
-    distanceCentimeters: number;
-  } | null>(null);
-  const [assessmentResults, setAssessmentResults] = useState<{
-    leftEye: EyeTestResult | null;
-    rightEye: EyeTestResult | null;
-  } | null>(null);
-
-  const handleViewingConfigurationSelected = (configuration: {
-    id: string;
-    name: string;
-    distanceCentimeters: number;
-  }) => {
-    setSelectedViewingConfiguration(configuration);
-    localStorage.setItem('lastSelectedViewingConfigurationId', configuration.id);
-
-    // Get calibration data from localStorage
-    const pixelsPerCmString = localStorage.getItem('pixelsPerCm');
-    if (pixelsPerCmString) {
-      const pixelsPerCm = parseFloat(pixelsPerCmString);
-      setCalibrationData({
-        pixelsPerCm,
-      });
-    }
-
-    setAssessmentState('assessment');
-  };
-
-  const handleAssessmentComplete = (results: {
-    leftEye: EyeTestResult | null;
-    rightEye: EyeTestResult | null;
-  }) => {
-    setAssessmentResults(results);
-    setAssessmentState('results');
-  };
-
-  switch (assessmentState) {
-    case 'configSelection':
-      return (
-        <ViewingConfigurationSelectionScreen
-          onStartAssessment={handleViewingConfigurationSelected}
-        />
-      );
-
-    case 'assessment':
-      return (
-        <EyeAssessmentWorkflow
-          calibrationData={calibrationData}
-          viewingConfiguration={selectedViewingConfiguration}
-          onWorkflowComplete={handleAssessmentComplete}
-          createGuessingEngine={createGuessingEngine}
-        />
-      );
-
-    case 'results':
-      return (
-        <AssessmentResultsScreen
-          results={assessmentResults}
-          viewingConfiguration={selectedViewingConfiguration}
-          calibrationData={calibrationData}
-        />
-      );
-
-    default:
-      return null;
-  }
+  return <EyeAssessmentWorkflow createGuessingEngine={createGuessingEngine} />;
 };
 
 export default AssessmentPage;

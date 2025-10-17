@@ -1,7 +1,7 @@
 import React from 'react';
 import './VisionTestResults.css';
-import TestCard from './TestCard';
-import type { VisionTest, EyeTestResult, LuxDevice } from '../lib/EyeDataStorage';
+import TestCard from '../TestCard.tsx';
+import type { VisionTest, EyeTestResult, LuxDevice } from '../../lib/EyeDataStorage.ts';
 
 interface VisionTestResultsProps {
   visionTests?: VisionTest[];
