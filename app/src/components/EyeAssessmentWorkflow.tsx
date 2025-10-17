@@ -14,6 +14,7 @@ import { UserLogMARGuessingEngine } from '../lib/UserLogMARGuessingEngine';
 import type { CalibrationData, ViewingConfiguration } from './assessmentWorkflow/types.ts';
 import ViewingConfigurationSelectionScreen from './assessmentWorkflow/ViewingConfigurationSelectionScreen.tsx';
 import AssessmentResultsScreen from './assessmentWorkflow/AssessmentResultsScreen.tsx';
+import NotesScreen from './assessmentWorkflow/NotesScreen.tsx';
 
 interface EyeAssessmentWorkflowProps {
   createGuessingEngine: (eye: Eye) => Promise<UserLogMARGuessingEngine>;
@@ -66,6 +67,15 @@ type WorkflowState =
       leftEyeResult: EyeTestResult;
     }
   | {
+      state: 'notes';
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+      luxDevice: LuxDevice | null;
+      luxMeasurement: number | null;
+      leftEyeResult: EyeTestResult;
+      rightEyeResult: EyeTestResult;
+    }
+  | {
       state: 'complete';
       viewingConfiguration: ViewingConfiguration;
       calibrationData: CalibrationData;
@@ -73,6 +83,7 @@ type WorkflowState =
       luxMeasurement: number | null;
       leftEyeResult: EyeTestResult;
       rightEyeResult: EyeTestResult;
+      notes: string;
     };
 
 const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({ createGuessingEngine }) => {
@@ -121,15 +132,32 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({ createGue
       startedTimestamp: workflowState.startTime,
     };
 
+    setWorkflowState({
+      state: 'notes',
+      viewingConfiguration: workflowState.viewingConfiguration,
+      calibrationData: workflowState.calibrationData,
+      luxDevice: workflowState.luxDevice,
+      luxMeasurement: workflowState.luxMeasurement,
+      leftEyeResult: workflowState.leftEyeResult,
+      rightEyeResult: eyeData,
+    });
+  };
+
+  const handleCompleteNotes = async (notes: string) => {
+    if (workflowState.state !== 'notes') {
+      throw new Error('Cannot complete notes when not on notes screen');
+    }
+
     // Save the complete test with all metadata
     const visionTest: VisionTest = {
       leftEye: workflowState.leftEyeResult,
-      rightEye: eyeData,
+      rightEye: workflowState.rightEyeResult,
       viewingConfigurationName: workflowState.viewingConfiguration.name,
       distanceCentimeters: workflowState.viewingConfiguration.distanceCentimeters,
       pixelsPerCm: workflowState.calibrationData.pixelsPerCm,
       luxDeviceId: workflowState.luxDevice?.id,
       luxMeasurement: workflowState.luxMeasurement ?? undefined,
+      notes,
     };
 
     try {
@@ -148,7 +176,8 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({ createGue
       luxDevice: workflowState.luxDevice,
       luxMeasurement: workflowState.luxMeasurement,
       leftEyeResult: workflowState.leftEyeResult,
-      rightEyeResult: eyeData,
+      rightEyeResult: workflowState.rightEyeResult,
+      notes,
     });
   };
 
@@ -255,6 +284,9 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({ createGue
         />
       );
 
+    case 'notes':
+      return <NotesScreen onNotesComplete={handleCompleteNotes} />;
+
     case 'complete':
       return (
         <AssessmentResultsScreen
@@ -263,6 +295,7 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({ createGue
           calibrationData={workflowState.calibrationData}
           luxDevice={workflowState.luxDevice}
           luxMeasurement={workflowState.luxMeasurement}
+          notes={workflowState.notes}
         />
       );
 

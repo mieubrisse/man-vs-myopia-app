@@ -9,6 +9,7 @@ interface TestCardProps {
   pixelsPerCm?: number;
   luxMeasurement?: number | null;
   luxDevice?: string;
+  notes?: string;
   timestamp?: number;
   isLatest?: boolean;
   className?: string;
@@ -22,35 +23,13 @@ const TestCard: React.FC<TestCardProps> = ({
   pixelsPerCm,
   luxMeasurement,
   luxDevice,
+  notes,
   timestamp,
   isLatest = false,
   className = '',
 }) => {
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
-  };
-
-  const getVisionLevel = (score: number): string => {
-    if (score <= 0.0) return 'Excellent';
-    if (score <= 0.3) return 'Good';
-    if (score <= 0.5) return 'Fair';
-    if (score <= 0.7) return 'Poor';
-    return 'Very Poor';
-  };
-
-  const getVisionColor = (score: number): string => {
-    if (score <= 0.0) return '#28a745'; // Green
-    if (score <= 0.3) return '#17a2b8'; // Blue
-    if (score <= 0.5) return '#ffc107'; // Yellow
-    if (score <= 0.7) return '#fd7e14'; // Orange
-    return '#dc3545'; // Red
-  };
-
-  const formatDuration = (startTime: number, endTime: number) => {
-    const durationMs = endTime - startTime;
-    const minutes = Math.floor(durationMs / 60000);
-    const seconds = Math.floor((durationMs % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   // Use timestamp from props or derive from eye results
@@ -84,101 +63,90 @@ const TestCard: React.FC<TestCardProps> = ({
       {/* Test Content */}
       <div className="test-content">
         <div className="eye-results-grid">
-          {/* Left Eye Results */}
-          <div className="eye-result">
-            <h4>Left Eye</h4>
-            {leftEye ? (
-              <>
-                <div className="logmar-display">
-                  <div
-                    className="logmar-score"
-                    style={{ color: getVisionColor(leftEye.logMARScore) }}
-                  >
-                    {leftEye.logMARScore.toFixed(3)}
-                  </div>
-                  <div
-                    className="vision-level"
-                    style={{ color: getVisionColor(leftEye.logMARScore) }}
-                  >
-                    {getVisionLevel(leftEye.logMARScore)}
-                  </div>
-                </div>
-                <div className="eye-details">
-                  <div className="detail-row">
-                    <span className="detail-label">Accuracy:</span>
-                    <span className="detail-value">
-                      {leftEye.attemptedLetters > 0
-                        ? `${Math.round((leftEye.correctLetters / leftEye.attemptedLetters) * 100)}%`
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Duration:</span>
-                    <span className="detail-value">
-                      {formatDuration(leftEye.startedTimestamp, leftEye.completedTimestamp)}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Letters:</span>
-                    <span className="detail-value">
-                      {leftEye.correctLetters}/{leftEye.attemptedLetters}
-                    </span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p>No data available</p>
-            )}
-          </div>
-
-          {/* Right Eye Results */}
-          <div className="eye-result">
-            <h4>Right Eye</h4>
-            {rightEye ? (
-              <>
-                <div className="logmar-display">
-                  <div
-                    className="logmar-score"
-                    style={{ color: getVisionColor(rightEye.logMARScore) }}
-                  >
-                    {rightEye.logMARScore.toFixed(3)}
-                  </div>
-                  <div
-                    className="vision-level"
-                    style={{ color: getVisionColor(rightEye.logMARScore) }}
-                  >
-                    {getVisionLevel(rightEye.logMARScore)}
-                  </div>
-                </div>
-                <div className="eye-details">
-                  <div className="detail-row">
-                    <span className="detail-label">Accuracy:</span>
-                    <span className="detail-value">
-                      {rightEye.attemptedLetters > 0
-                        ? `${Math.round((rightEye.correctLetters / rightEye.attemptedLetters) * 100)}%`
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Duration:</span>
-                    <span className="detail-value">
-                      {formatDuration(rightEye.startedTimestamp, rightEye.completedTimestamp)}
-                    </span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Letters:</span>
-                    <span className="detail-value">
-                      {rightEye.correctLetters}/{rightEye.attemptedLetters}
-                    </span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p>No data available</p>
-            )}
-          </div>
+          <EyeResultDisplay eye={leftEye} eyeName={'Left'} />
+          <EyeResultDisplay eye={rightEye} eyeName={'Right'} />
         </div>
+        {notes && (
+          <div className="test-notes">
+            <h4>Notes</h4>
+            <p>
+              <i>{notes}</i>
+            </p>
+          </div>
+        )}
       </div>
+    </div>
+  );
+};
+
+interface EyeResultDisplayProps {
+  eye: EyeTestResult | null;
+  eyeName: 'Left' | 'Right';
+}
+
+const EyeResultDisplay: React.FC<EyeResultDisplayProps> = ({ eye, eyeName }) => {
+  const getVisionLevel = (score: number): string => {
+    if (score <= 0.0) return 'Excellent';
+    if (score <= 0.3) return 'Good';
+    if (score <= 0.5) return 'Fair';
+    if (score <= 0.7) return 'Poor';
+    return 'Very Poor';
+  };
+
+  const getVisionColor = (score: number): string => {
+    if (score <= 0.0) return '#28a745'; // Green
+    if (score <= 0.3) return '#17a2b8'; // Blue
+    if (score <= 0.5) return '#ffc107'; // Yellow
+    if (score <= 0.7) return '#fd7e14'; // Orange
+    return '#dc3545'; // Red
+  };
+
+  const formatDuration = (startTime: number, endTime: number) => {
+    const durationMs = endTime - startTime;
+    const minutes = Math.floor(durationMs / 60000);
+    const seconds = Math.floor((durationMs % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="eye-result">
+      <h4>{eyeName} Eye</h4>
+      {eye ? (
+        <>
+          <div className="logmar-display">
+            <div className="logmar-score" style={{ color: getVisionColor(eye.logMARScore) }}>
+              {eye.logMARScore.toFixed(3)}
+            </div>
+            <div className="vision-level" style={{ color: getVisionColor(eye.logMARScore) }}>
+              {getVisionLevel(eye.logMARScore)}
+            </div>
+          </div>
+          <div className="eye-details">
+            <div className="detail-row">
+              <span className="detail-label">Accuracy:</span>
+              <span className="detail-value">
+                {eye.attemptedLetters > 0
+                  ? `${Math.round((eye.correctLetters / eye.attemptedLetters) * 100)}%`
+                  : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Duration:</span>
+              <span className="detail-value">
+                {formatDuration(eye.startedTimestamp, eye.completedTimestamp)}
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Letters:</span>
+              <span className="detail-value">
+                {eye.correctLetters}/{eye.attemptedLetters}
+              </span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <p>No data available</p>
+      )}
     </div>
   );
 };

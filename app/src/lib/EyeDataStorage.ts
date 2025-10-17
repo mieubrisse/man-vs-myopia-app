@@ -22,6 +22,7 @@ export const VisionTestSchema = z.object({
   pixelsPerCm: z.number(),
   luxDeviceId: z.string().optional(),
   luxMeasurement: z.number().optional(),
+  notes: z.string().optional(),
 });
 
 export const LuxDeviceSchema = z.object({
