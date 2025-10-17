@@ -1,51 +1,24 @@
 import React from 'react';
 import './VisionTestResults.css';
 import TestCard from '../TestCard.tsx';
-import type { VisionTest, EyeTestResult, LuxDevice } from '../../lib/EyeDataStorage.ts';
+import type { VisionTest, LuxDevice } from '../../lib/EyeDataStorage.ts';
 
 interface VisionTestResultsProps {
   visionTests?: VisionTest[];
   luxDevices?: LuxDevice[];
-  singleResult?: {
-    leftEye: EyeTestResult | null;
-    rightEye: EyeTestResult | null;
-  };
   showActions?: boolean;
   onClearData?: () => void;
-  className?: string;
-  title?: string;
-  description?: string;
 }
 
 const VisionTestResults: React.FC<VisionTestResultsProps> = ({
   visionTests = [],
   luxDevices = [],
-  singleResult,
   showActions = false,
   onClearData,
-  className = '',
-  title,
-  description,
 }) => {
-  // Handle single result case (immediate post-assessment)
-  if (singleResult) {
-    return (
-      <div className={`vision-test-results ${className}`}>
-        {title && <h1>{title}</h1>}
-        {description && <p className="results-description">{description}</p>}
-
-        <TestCard
-          leftEye={singleResult.leftEye}
-          rightEye={singleResult.rightEye}
-          className="single-result"
-        />
-      </div>
-    );
-  }
-
   if (visionTests.length === 0) {
     return (
-      <div className={`vision-test-results ${className}`}>
+      <div className={`vision-test-results`}>
         <div className="no-results">
           <h2>No Assessment Data</h2>
           <p>Complete a vision assessment to see your results here.</p>
@@ -55,7 +28,7 @@ const VisionTestResults: React.FC<VisionTestResultsProps> = ({
   }
 
   return (
-    <div className={`vision-test-results ${className}`}>
+    <div className={`vision-test-results`}>
       {showActions && visionTests.length > 0 && onClearData && (
         <div className="results-actions">
           <button
@@ -85,6 +58,7 @@ const VisionTestResults: React.FC<VisionTestResultsProps> = ({
               pixelsPerCm={test.pixelsPerCm}
               luxMeasurement={test.luxMeasurement}
               luxDevice={luxDevices.find(d => d.id === test.luxDeviceId)?.deviceName}
+              notes={test.notes}
               timestamp={testDate}
               isLatest={index === 0}
             />

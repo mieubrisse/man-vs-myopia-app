@@ -125,6 +125,21 @@
   margin-top: 1rem;
 }
 
+.test-notes {
+  margin: 1rem 0.5rem 0rem 0.5rem;
+  padding: 1rem;
+  border: 1px solid #e9ecef;
+  background-color: #fcfcfc;
+  border-radius: 8px;
+}
+
+.test-notes h4 {
+  margin: 0 0 0.5rem 0;
+}
+.test-notes p {
+  margin: 0 0 0 0.5rem;
+}
+
 @media (max-width: 768px) {
   .eye-results-grid {
     grid-template-columns: 1fr;
