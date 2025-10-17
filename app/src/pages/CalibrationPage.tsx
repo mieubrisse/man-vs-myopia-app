@@ -15,10 +15,13 @@ const CalibrationPage: React.FC = () => {
 
   // Load existing calibration on component mount
   useEffect(() => {
-    const existingPixelsPerCm = localStorage.getItem('pixelsPerCm');
-    if (existingPixelsPerCm) {
-      const calculatedHeight = 600 / parseFloat(existingPixelsPerCm);
-      setSavedCalibrationValue(`${calculatedHeight.toFixed(1)}cm (${existingPixelsPerCm} px/cm)`);
+    const existingPixelsPerCmRaw = localStorage.getItem('pixelsPerCm');
+    if (existingPixelsPerCmRaw) {
+      const existingPixelsPerCm = parseFloat(existingPixelsPerCmRaw);
+      const calculatedHeight = 600 / existingPixelsPerCm;
+      setSavedCalibrationValue(
+        `${calculatedHeight.toFixed(1)}cm (${existingPixelsPerCm.toFixed(1)} px/cm)`
+      );
       setHasExistingCalibration(true);
     }
   }, []);
@@ -45,7 +48,7 @@ const CalibrationPage: React.FC = () => {
     const calculatedPixelsPerCm = referenceSizePx / height;
 
     localStorage.setItem('pixelsPerCm', calculatedPixelsPerCm.toString());
-    setSavedCalibrationValue(`${heightCm}cm (${calculatedPixelsPerCm.toFixed(1)} px/cm)`);
+    setSavedCalibrationValue(`${height.toFixed(1)}cm (${calculatedPixelsPerCm.toFixed(1)} px/cm)`);
 
     setHasExistingCalibration(true);
 
