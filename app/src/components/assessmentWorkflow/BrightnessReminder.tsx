@@ -1,6 +1,6 @@
 import React from 'react';
 import './BrightnessReminder.css';
-import Button from './buttons/Button.tsx';
+import Button from '../buttons/Button.tsx';
 
 interface BrightnessReminderProps {
   onContinue: () => void;

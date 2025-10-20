@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import LogMARChart from './LogMARChart';
-import EyeIntroScreen from './EyeIntroScreen';
-import BrightnessReminder from './BrightnessReminder';
-import LuxDeviceSelectionScreen from './LuxDeviceSelectionScreen';
+import LogMARChart from './assessmentWorkflow/LogMARChart.tsx';
+import EyeIntroScreen from './assessmentWorkflow/EyeIntroScreen.tsx';
+import BrightnessReminder from './assessmentWorkflow/BrightnessReminder.tsx';
+import LuxDeviceSelectionScreen from './assessmentWorkflow/LuxDeviceSelectionScreen.tsx';
 import {
   type Eye,
   EyeDataStorage,
@@ -11,54 +11,74 @@ import {
   type VisionTest,
 } from '../lib/EyeDataStorage';
 import { UserLogMARGuessingEngine } from '../lib/UserLogMARGuessingEngine';
-
-interface CalibrationData {
-  pixelsPerCm: number;
-}
-
-interface ViewingConfiguration {
-  id: string;
-  name: string;
-  distanceCentimeters: number;
-}
+import type { CalibrationData, ViewingConfiguration } from './assessmentWorkflow/types.ts';
+import ViewingConfigurationSelectionScreen from './assessmentWorkflow/ViewingConfigurationSelectionScreen.tsx';
+import AssessmentResultsScreen from './assessmentWorkflow/AssessmentResultsScreen.tsx';
 
 interface EyeAssessmentWorkflowProps {
-  calibrationData: CalibrationData | null;
-  viewingConfiguration: ViewingConfiguration | null;
-  onWorkflowComplete: (results: {
-    leftEye: EyeTestResult | null;
-    rightEye: EyeTestResult | null;
-  }) => void;
   createGuessingEngine: (eye: Eye) => Promise<UserLogMARGuessingEngine>;
 }
 
-type WorkflowStateWithNoEngine =
-  | { state: 'brightnessReminder' }
-  | { state: 'luxDeviceSelection' }
-  | { state: 'leftEyeIntro' }
-  | { state: 'rightEyeIntro' }
-  | { state: 'complete' };
-type WorkflowStateWithEngine =
-  | { state: 'leftEyeTest'; engine: UserLogMARGuessingEngine }
-  | { state: 'rightEyeTest'; engine: UserLogMARGuessingEngine };
+type WorkflowState =
+  | { state: 'configSelection' }
+  | {
+      state: 'brightnessReminder';
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+    }
+  | {
+      state: 'luxDeviceSelection';
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+    }
+  | {
+      state: 'leftEyeIntro';
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+      luxDevice: LuxDevice | null;
+      luxMeasurement: number | null;
+    }
+  | {
+      state: 'leftEyeTest';
+      engine: UserLogMARGuessingEngine;
+      startTime: number;
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+      luxDevice: LuxDevice | null;
+      luxMeasurement: number | null;
+    }
+  | {
+      state: 'rightEyeIntro';
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+      luxDevice: LuxDevice | null;
+      luxMeasurement: number | null;
+      leftEyeResult: EyeTestResult;
+    }
+  | {
+      state: 'rightEyeTest';
+      engine: UserLogMARGuessingEngine;
+      startTime: number;
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+      luxDevice: LuxDevice | null;
+      luxMeasurement: number | null;
+      leftEyeResult: EyeTestResult;
+    }
+  | {
+      state: 'complete';
+      viewingConfiguration: ViewingConfiguration;
+      calibrationData: CalibrationData;
+      luxDevice: LuxDevice | null;
+      luxMeasurement: number | null;
+      leftEyeResult: EyeTestResult;
+      rightEyeResult: EyeTestResult;
+    };
 
-type WorkflowState = WorkflowStateWithNoEngine | WorkflowStateWithEngine;
-
-const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
-  calibrationData,
-  viewingConfiguration,
-  onWorkflowComplete,
-  createGuessingEngine,
-}) => {
+const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({ createGuessingEngine }) => {
   const [workflowState, setWorkflowState] = useState<WorkflowState>({
-    state: 'brightnessReminder',
+    state: 'configSelection',
   });
-  const [leftEyeResult, setLeftEyeResult] = useState<EyeTestResult | null>(null);
-  const [, setRightEyeResult] = useState<EyeTestResult | null>(null);
-  const [leftEyeStartTime, setLeftEyeStartTime] = useState<number>(0);
-  const [rightEyeStartTime, setRightEyeStartTime] = useState<number>(0);
-  const [selectedLuxDevice, setSelectedLuxDevice] = useState<LuxDevice | null>(null);
-  const [luxMeasurement, setLuxMeasurement] = useState<number | null>(null);
 
   const handleLeftEyeComplete = (results: {
     logMARScore: number;
@@ -66,14 +86,23 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     totalLetters: number;
     attemptedLetters: number;
   }) => {
+    if (workflowState.state !== 'leftEyeTest') {
+      throw new Error('Cannot complete left eye when not running test');
+    }
     const eyeData: EyeTestResult = {
       ...results,
       completedTimestamp: Date.now(),
-      startedTimestamp: leftEyeStartTime,
+      startedTimestamp: workflowState.startTime,
     };
 
-    setLeftEyeResult(eyeData);
-    setWorkflowState({ state: 'rightEyeIntro' });
+    setWorkflowState({
+      state: 'rightEyeIntro',
+      viewingConfiguration: workflowState.viewingConfiguration,
+      calibrationData: workflowState.calibrationData,
+      luxDevice: workflowState.luxDevice,
+      luxMeasurement: workflowState.luxMeasurement,
+      leftEyeResult: eyeData,
+    });
   };
 
   const handleRightEyeComplete = async (results: {
@@ -82,61 +111,117 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     totalLetters: number;
     attemptedLetters: number;
   }) => {
+    if (workflowState.state !== 'rightEyeTest') {
+      throw new Error('Cannot complete right eye when not running test');
+    }
+
     const eyeData: EyeTestResult = {
       ...results,
       completedTimestamp: Date.now(),
-      startedTimestamp: rightEyeStartTime,
+      startedTimestamp: workflowState.startTime,
     };
 
-    setRightEyeResult(eyeData);
-
     // Save the complete test with all metadata
-    if (leftEyeResult && viewingConfiguration && calibrationData) {
-      const visionTest: VisionTest = {
-        leftEye: leftEyeResult,
-        rightEye: eyeData,
-        viewingConfigurationName: viewingConfiguration.name,
-        distanceCentimeters: viewingConfiguration.distanceCentimeters,
-        pixelsPerCm: calibrationData.pixelsPerCm,
-        luxDeviceId: selectedLuxDevice?.id,
-        luxMeasurement: luxMeasurement ?? undefined,
-      };
+    const visionTest: VisionTest = {
+      leftEye: workflowState.leftEyeResult,
+      rightEye: eyeData,
+      viewingConfigurationName: workflowState.viewingConfiguration.name,
+      distanceCentimeters: workflowState.viewingConfiguration.distanceCentimeters,
+      pixelsPerCm: workflowState.calibrationData.pixelsPerCm,
+      luxDeviceId: workflowState.luxDevice?.id,
+      luxMeasurement: workflowState.luxMeasurement ?? undefined,
+    };
 
-      try {
-        await EyeDataStorage.saveTest(visionTest);
-        console.log('Saved test to API');
-      } catch (error) {
-        console.error('Failed to save vision test:', error);
-        // Continue with workflow completion even if save fails
-      }
+    try {
+      await EyeDataStorage.saveTest(visionTest);
+      console.log('Saved test to API');
+    } catch (error) {
+      console.error('Failed to save vision test:', error);
+      // Continue with workflow completion even if save fails
     }
 
     // Complete the workflow
-    onWorkflowComplete({
-      leftEye: leftEyeResult,
-      rightEye: eyeData,
+    setWorkflowState({
+      state: 'complete',
+      viewingConfiguration: workflowState.viewingConfiguration,
+      calibrationData: workflowState.calibrationData,
+      luxDevice: workflowState.luxDevice,
+      luxMeasurement: workflowState.luxMeasurement,
+      leftEyeResult: workflowState.leftEyeResult,
+      rightEyeResult: eyeData,
     });
   };
 
   const handleStartEyeTest = (eye: Eye) => async () => {
-    const setEyeStartTime = eye === 'left' ? setLeftEyeStartTime : setRightEyeStartTime;
-    setEyeStartTime(Date.now());
-    setWorkflowState({
-      state: eye === 'left' ? 'leftEyeTest' : 'rightEyeTest',
-      engine: await createGuessingEngine(eye),
-    });
+    if (workflowState.state === 'leftEyeIntro') {
+      setWorkflowState({
+        state: 'leftEyeTest',
+        engine: await createGuessingEngine(eye),
+        startTime: Date.now(),
+        viewingConfiguration: workflowState.viewingConfiguration,
+        calibrationData: workflowState.calibrationData,
+        luxDevice: workflowState.luxDevice,
+        luxMeasurement: workflowState.luxMeasurement,
+      });
+    } else if (workflowState.state === 'rightEyeIntro') {
+      setWorkflowState({
+        state: 'rightEyeTest',
+        engine: await createGuessingEngine(eye),
+        startTime: Date.now(),
+        viewingConfiguration: workflowState.viewingConfiguration,
+        calibrationData: workflowState.calibrationData,
+        luxDevice: workflowState.luxDevice,
+        luxMeasurement: workflowState.luxMeasurement,
+        leftEyeResult: workflowState.leftEyeResult,
+      });
+    }
   };
 
   const handleLuxDeviceSelection = (device: LuxDevice | null, measurement: number | null) => {
-    setSelectedLuxDevice(device);
-    setLuxMeasurement(measurement);
-    setWorkflowState({ state: 'leftEyeIntro' });
+    if (workflowState.state !== 'luxDeviceSelection') {
+      throw new Error('Cannot complete lux device selection when not on lux selection screen');
+    }
+    setWorkflowState({
+      state: 'leftEyeIntro',
+      viewingConfiguration: workflowState.viewingConfiguration,
+      calibrationData: workflowState.calibrationData,
+      luxDevice: device,
+      luxMeasurement: measurement,
+    });
+  };
+
+  const handleViewingConfigurationSelected = (configuration: ViewingConfiguration) => {
+    localStorage.setItem('lastSelectedViewingConfigurationId', configuration.id);
+
+    // Get calibration data from localStorage
+    const pixelsPerCmString = localStorage.getItem('pixelsPerCm');
+    const pixelsPerCm = parseFloat(pixelsPerCmString || 'NaN') || 10;
+
+    setWorkflowState({
+      state: 'brightnessReminder',
+      viewingConfiguration: configuration,
+      calibrationData: { pixelsPerCm },
+    });
   };
 
   switch (workflowState.state) {
+    case 'configSelection':
+      return (
+        <ViewingConfigurationSelectionScreen
+          onStartAssessment={handleViewingConfigurationSelected}
+        />
+      );
     case 'brightnessReminder':
       return (
-        <BrightnessReminder onContinue={() => setWorkflowState({ state: 'luxDeviceSelection' })} />
+        <BrightnessReminder
+          onContinue={() =>
+            setWorkflowState({
+              state: 'luxDeviceSelection',
+              viewingConfiguration: workflowState.viewingConfiguration,
+              calibrationData: workflowState.calibrationData,
+            })
+          }
+        />
       );
 
     case 'luxDeviceSelection':
@@ -148,8 +233,8 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     case 'leftEyeTest':
       return (
         <LogMARChart
-          calibrationData={calibrationData}
-          viewingConfiguration={viewingConfiguration}
+          calibrationData={workflowState.calibrationData}
+          viewingConfiguration={workflowState.viewingConfiguration}
           onAssessmentComplete={handleLeftEyeComplete}
           guessingEngine={workflowState.engine!}
           currentEye="left"
@@ -162,11 +247,22 @@ const EyeAssessmentWorkflow: React.FC<EyeAssessmentWorkflowProps> = ({
     case 'rightEyeTest':
       return (
         <LogMARChart
-          calibrationData={calibrationData}
-          viewingConfiguration={viewingConfiguration}
+          calibrationData={workflowState.calibrationData}
+          viewingConfiguration={workflowState.viewingConfiguration}
           onAssessmentComplete={handleRightEyeComplete}
           guessingEngine={workflowState.engine}
           currentEye="right"
+        />
+      );
+
+    case 'complete':
+      return (
+        <AssessmentResultsScreen
+          results={{ leftEye: workflowState.leftEyeResult, rightEye: workflowState.rightEyeResult }}
+          viewingConfiguration={workflowState.viewingConfiguration}
+          calibrationData={workflowState.calibrationData}
+          luxDevice={workflowState.luxDevice}
+          luxMeasurement={workflowState.luxMeasurement}
         />
       );
 

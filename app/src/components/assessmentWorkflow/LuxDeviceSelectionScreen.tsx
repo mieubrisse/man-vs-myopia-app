@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EyeDataStorage, type LuxDevice } from '../lib/EyeDataStorage';
-import Card from './layout/Card';
-import Button from './buttons/Button';
+import { EyeDataStorage, type LuxDevice } from '../../lib/EyeDataStorage.ts';
+import Card from '../layout/Card.tsx';
+import Button from '../buttons/Button.tsx';
 import './LuxDeviceSelectionScreen.css';
-import { ROUTES } from '../lib/routes.ts';
+import { ROUTES } from '../../lib/routes.ts';
 
 interface LuxDeviceSelectionScreenProps {
   onContinue: (selectedDevice: LuxDevice | null, luxMeasurement: number | null) => void;

@@ -1,5 +1,5 @@
-import React from "react";
-import type { Eye } from "../lib/EyeDataStorage";
+import React from 'react';
+import type { Eye } from '../../lib/EyeDataStorage.ts';
 
 interface EyeIntroScreenProps {
   eye: Eye;
@@ -10,24 +10,25 @@ const EyeIntroScreen: React.FC<EyeIntroScreenProps> = ({ eye, onStartTest }) => 
   const eyeName = eye === 'left' ? 'Left' : 'Right';
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      padding: '2rem',
-      textAlign: 'center'
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        padding: '2rem',
+        textAlign: 'center',
+      }}
+    >
       <h1>{eyeName} Eye Assessment</h1>
       <p style={{ fontSize: '1.2rem', marginBottom: '2rem', maxWidth: '600px' }}>
-        {eye === 'left' 
+        {eye === 'left'
           ? "We'll now test your left eye. Please cover your right eye with your hand or an eye patch, keeping your left eye open and focused on the screen."
-          : "Great! Your left eye assessment is complete. Now we'll test your right eye. Please cover your left eye with your hand or an eye patch, keeping your right eye open and focused on the screen."
-        }
+          : "Great! Your left eye assessment is complete. Now we'll test your right eye. Please cover your left eye with your hand or an eye patch, keeping your right eye open and focused on the screen."}
       </p>
-      
-      <button 
+
+      <button
         onClick={onStartTest}
         style={{
           padding: '1rem 2rem',
@@ -36,7 +37,7 @@ const EyeIntroScreen: React.FC<EyeIntroScreenProps> = ({ eye, onStartTest }) => 
           color: 'white',
           border: 'none',
           borderRadius: '5px',
-          cursor: 'pointer'
+          cursor: 'pointer',
         }}
       >
         Start {eyeName} Eye Test

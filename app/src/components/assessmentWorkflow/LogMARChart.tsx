@@ -1,12 +1,15 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import "./LogMARChart.css";
-import { LandoltCOptotype } from "./LandoltCOptotype";
-import { UserLogMARGuessingEngine } from "../lib/UserLogMARGuessingEngine";
-import AlphaProbabilityGraph, { type ProbabilityGraphDatapoint } from "./AlphaProbabilityGraph";
-import ResponseIndicator from "./ResponseIndicator";
-import ConfidenceProgress from "./ConfidenceProgress";
-import { calculateLogisticPsychometric } from "../lib/UserLogMARGuessingEngine";
-import type { Eye } from "../lib/EyeDataStorage";
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import './LogMARChart.css';
+import { LandoltCOptotype } from '../LandoltCOptotype.tsx';
+import { UserLogMARGuessingEngine } from '../../lib/UserLogMARGuessingEngine.ts';
+import AlphaProbabilityGraph, {
+  type ProbabilityGraphDatapoint,
+} from '../AlphaProbabilityGraph.tsx';
+import ResponseIndicator from '../ResponseIndicator.tsx';
+import ConfidenceProgress from '../ConfidenceProgress.tsx';
+import { calculateLogisticPsychometric } from '../../lib/UserLogMARGuessingEngine.ts';
+import type { Eye } from '../../lib/EyeDataStorage.ts';
+import type { CalibrationData, ViewingConfiguration } from './types.ts';
 
 interface TopPanelDebugInfo {
   nextTrialLogMAR: number;
@@ -18,24 +21,14 @@ interface TopPanelDebugInfo {
 
 interface LetterState {
   orientation: string;
-  status?: "correct" | "incorrect" | "current" | "pending";
-}
-
-interface CalibrationData {
-  pixelsPerCm: number;
-}
-
-interface ViewingConfiguration {
-  id: string;
-  name: string;
-  distanceCentimeters: number;
+  status?: 'correct' | 'incorrect' | 'current' | 'pending';
 }
 
 interface FinalSpeechDebugRow {
   guessNumber: number;
   logMAR: number;
   transcript: string;
-  correctness: "CORRECT" | "INCORRECT";
+  correctness: 'CORRECT' | 'INCORRECT';
   acuityGuess: number;
   nextProposal: number;
   ciLower: number;
@@ -46,8 +39,8 @@ interface FinalSpeechDebugRow {
 
 interface LogMARChartProps {
   onLetterValidated?: (isCorrect: boolean) => void;
-  calibrationData?: CalibrationData | null;
-  viewingConfiguration?: ViewingConfiguration | null;
+  calibrationData?: CalibrationData;
+  viewingConfiguration?: ViewingConfiguration;
   guessingEngine: UserLogMARGuessingEngine;
   currentEye: Eye;
   onAssessmentComplete?: (results: {
@@ -65,10 +58,10 @@ export function calculateLetterPixelSizeForLogMAR(
   fontSizePxPerCm: number
 ): number {
   if (viewingDistanceCm === 0) {
-    throw new Error("viewingDistanceCm must be nonzero");
+    throw new Error('viewingDistanceCm must be nonzero');
   }
   if (fontSizePxPerCm === 0) {
-    throw new Error("fontSizePxPerCm must be nonzero");
+    throw new Error('fontSizePxPerCm must be nonzero');
   }
   // Step 1: Convert LogMAR to MAR (Minimum Angle of Resolution, in arcminutes)
   const MAR = Math.pow(10, desiredLogMAR); // MAR in arcminutes
@@ -103,10 +96,10 @@ const TARGET_CONFIDENCE_INTERVAL_WIDTH = 0.05;
 
 // Homophone mappings for common misrecognitions
 const HOMOPHONE_MAPPINGS: { [key: string]: string } = {
-  CELL: "SOUTH",
-  SELF: "SOUTH",
-  SO: "SOUTH",
-  QUEST: "WEST",
+  CELL: 'SOUTH',
+  SELF: 'SOUTH',
+  SO: 'SOUTH',
+  QUEST: 'WEST',
   // Add more as needed
 };
 
@@ -118,14 +111,14 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   guessingEngine,
 }) => {
   const LANDOLT_C_ORIENTATIONS = [
-    "NORTH",
-    "NORTHEAST",
-    "EAST",
-    "SOUTHEAST",
-    "SOUTH",
-    "SOUTHWEST",
-    "WEST",
-    "NORTHWEST",
+    'NORTH',
+    'NORTHEAST',
+    'EAST',
+    'SOUTHEAST',
+    'SOUTH',
+    'SOUTHWEST',
+    'WEST',
+    'NORTHWEST',
   ];
   const NUM_LETTERS_PER_LINE = 3;
 
@@ -186,15 +179,15 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   // };
 
   const ORIENTATION_MAPPINGS: { [key: string]: string } = {
-    NORTH: "NORTH",
-    NORTHEAST: "NORTHEAST",
-    EAST: "EAST",
-    SOUTHEAST: "SOUTHEAST",
-    SOUTH: "SOUTH",
-    SOUTHWEST: "SOUTHWEST",
-    WEST: "WEST",
-    NORTHWEST: "NORTHWEST",
-    FINISH: "FINISH",
+    NORTH: 'NORTH',
+    NORTHEAST: 'NORTHEAST',
+    EAST: 'EAST',
+    SOUTHEAST: 'SOUTHEAST',
+    SOUTH: 'SOUTH',
+    SOUTHWEST: 'SOUTHWEST',
+    WEST: 'WEST',
+    NORTHWEST: 'NORTHWEST',
+    FINISH: 'FINISH',
   };
 
   // Helper function to convert spoken words to orientations
@@ -226,7 +219,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
       orientations.push({
         orientation: selectedOrientation,
-        status: "pending",
+        status: 'pending',
       });
     }
 
@@ -235,10 +228,10 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   // Initialize the first row on mount
   useEffect(() => {
-    setCurrentRowLetters((prev) => {
+    setCurrentRowLetters(prev => {
       if (prev.length === 0) {
         const row = generateRowLetters();
-        row[0].status = "current";
+        row[0].status = 'current';
         return row;
       }
       return prev;
@@ -303,28 +296,28 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   // Initialize speech recognition
   useEffect(() => {
     if (!window.webkitSpeechRecognition) {
-      console.error("Speech recognition is not supported in this browser.");
+      console.error('Speech recognition is not supported in this browser.');
       return;
     }
     try {
       // Add grammar for Landolt C directions
       const grammarWords = [
-        "NORTH",
-        "NORTHEAST",
-        "EAST",
-        "SOUTHEAST",
-        "SOUTH",
-        "SOUTHWEST",
-        "WEST",
-        "NORTHWEST",
-        "FINISH",
+        'NORTH',
+        'NORTHEAST',
+        'EAST',
+        'SOUTHEAST',
+        'SOUTH',
+        'SOUTHWEST',
+        'WEST',
+        'NORTHWEST',
+        'FINISH',
       ];
       const grammar =
-        "#JSGF V1.0; grammar directions; public <direction> = " + grammarWords.join(" | ") + " ;";
+        '#JSGF V1.0; grammar directions; public <direction> = ' + grammarWords.join(' | ') + ' ;';
       console.log(`Adding grammar: ${grammar}`);
       const SpeechGrammarListCtor = window.SpeechGrammarList || window.webkitSpeechGrammarList;
       if (!SpeechGrammarListCtor) {
-        throw new Error("SpeechGrammarList is not supported in this browser.");
+        throw new Error('SpeechGrammarList is not supported in this browser.');
       }
       const speechRecognitionList: SpeechGrammarList = new SpeechGrammarListCtor();
       speechRecognitionList.addFromString(grammar, 100); // Use 100 to force the recognition to strongly favor our stuff
@@ -333,16 +326,16 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       recognition.grammars = speechRecognitionList;
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = "en-US";
+      recognition.lang = 'en-US';
       recognitionRef.current = recognition;
       recognition.onstart = () => {
-        console.log("Speech recognition started");
+        console.log('Speech recognition started');
       };
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        if (event.error === "no-speech") {
-          console.log("No speech detected");
+        if (event.error === 'no-speech') {
+          console.log('No speech detected');
         } else {
-          console.error("Speech recognition error:", event);
+          console.error('Speech recognition error:', event);
         }
       };
       recognition.onend = () => {
@@ -366,7 +359,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             const processNextLetter = () => {
               if (letterIndex >= recognizedOrientations.length) return;
               const orientation = recognizedOrientations[letterIndex];
-              if (orientation === "FINISH") {
+              if (orientation === 'FINISH') {
                 setIsAssessmentFinished(true);
                 finishAssessmentRef.current();
                 if (recognitionRef.current) recognitionRef.current.stop();
@@ -399,7 +392,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 guessNumber: guessCounterRef.current++,
                 logMAR: currentLogMARRef.current,
                 transcript: orientation,
-                correctness: (isCorrect ? "CORRECT" : "INCORRECT") as "CORRECT" | "INCORRECT",
+                correctness: (isCorrect ? 'CORRECT' : 'INCORRECT') as 'CORRECT' | 'INCORRECT',
                 acuityGuess: guessedLogMAR,
                 nextProposal: nextTrialLogMAR,
                 ciLower: intervalLowerBound,
@@ -407,24 +400,24 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 ciWidth: confidenceIntervalWidth,
                 totalCorrect: totalCorrectRef.current,
               };
-              setSpeechDebugRows((prev) => {
+              setSpeechDebugRows(prev => {
                 const updated = [newRow, ...prev];
                 return updated.sort((a, b) => a.guessNumber - b.guessNumber).slice(-4); // Show only the last 4 guesses, ascending order
               });
-              setAllSpeechDebugRows((prev) => [...prev, newRow]);
+              setAllSpeechDebugRows(prev => [...prev, newRow]);
 
-              setCurrentRowLetters((prev) => {
+              setCurrentRowLetters(prev => {
                 if (idx >= prev.length) return prev;
                 const updated = [...prev];
-                updated[idx].status = isCorrect ? "correct" : "incorrect";
+                updated[idx].status = isCorrect ? 'correct' : 'incorrect';
                 if (idx + 1 < updated.length) {
-                  updated[idx + 1].status = "current";
+                  updated[idx + 1].status = 'current';
                 }
                 return updated;
               });
 
               // Update the score map
-              setLogMARScoreMap((prev) => {
+              setLogMARScoreMap(prev => {
                 const newMap = new Map(prev);
                 const currentScores = newMap.get(currentLogMARRef.current) || {
                   attempted: 0,
@@ -438,7 +431,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               });
 
               onLetterValidatedRef.current?.(isCorrect);
-              setCurrentLetterIndex((prev) => prev + 1);
+              setCurrentLetterIndex(prev => prev + 1);
               letterIndex++;
               setTimeout(processNextLetter, 100);
             };
@@ -449,7 +442,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       };
       recognition.start();
     } catch (err) {
-      console.error("Error initializing speech recognition:", err);
+      console.error('Error initializing speech recognition:', err);
     }
     return () => {
       if (recognitionRef.current) {
@@ -463,7 +456,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   useEffect(() => {
     if (
       currentRowLetters.length === NUM_LETTERS_PER_LINE &&
-      currentRowLetters.every((l) => l.status === "correct" || l.status === "incorrect") &&
+      currentRowLetters.every(l => l.status === 'correct' || l.status === 'incorrect') &&
       !isAssessmentFinished
     ) {
       const { intervalLowerBound, intervalUpperBound } = guessingEngine.guessUserLogMAR();
@@ -480,7 +473,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
       setCurrentLogMAR(nextLogMAR);
       const nextRow = generateRowLetters();
-      nextRow[0].status = "current";
+      nextRow[0].status = 'current';
       setCurrentRowLetters(nextRow);
       setCurrentLetterIndex(0);
     }
@@ -494,25 +487,25 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
 
   // Log calibration and viewing configuration data when component mounts
   useEffect(() => {
-    console.log("=== Assessment Configuration ===");
+    console.log('=== Assessment Configuration ===');
 
     if (calibrationData) {
-      console.log("Font Size Calibration:");
-      console.log("  - Pixels per cm:", calibrationData.pixelsPerCm);
+      console.log('Font Size Calibration:');
+      console.log('  - Pixels per cm:', calibrationData.pixelsPerCm);
     } else {
-      console.log("Font Size Calibration: Not available");
+      console.log('Font Size Calibration: Not available');
     }
 
     if (viewingConfiguration) {
-      console.log("Viewing Configuration:");
-      console.log("  - UUID:", viewingConfiguration.id);
-      console.log("  - Name:", viewingConfiguration.name);
-      console.log("  - Distance:", viewingConfiguration.distanceCentimeters, "cm from screen");
+      console.log('Viewing Configuration:');
+      console.log('  - UUID:', viewingConfiguration.id);
+      console.log('  - Name:', viewingConfiguration.name);
+      console.log('  - Distance:', viewingConfiguration.distanceCentimeters, 'cm from screen');
     } else {
-      console.log("Viewing Configuration: Not available");
+      console.log('Viewing Configuration: Not available');
     }
 
-    console.log("================================");
+    console.log('================================');
   }, [calibrationData, viewingConfiguration]);
 
   // Calculate LogMAR letter sizes based on viewing distance and calibration
@@ -544,91 +537,91 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
   const [lastHeardTranscript, setLastHeardTranscript] = useState<{
     transcript: string;
     isFinal: boolean;
-  }>({ transcript: "", isFinal: false });
+  }>({ transcript: '', isFinal: false });
 
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        width: "100vw",
-        height: "100vh",
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        width: '100vw',
+        height: '100vh',
         margin: 0,
         padding: 0,
-        boxSizing: "border-box",
+        boxSizing: 'border-box',
       }}
     >
       {/* Top debug panel: only the speech recognition results table */}
       <div
         style={{
-          width: "100%",
+          width: '100%',
           zIndex: 1000,
-          padding: "0 1rem 1rem 1rem",
-          backgroundColor: "#f0f0f0",
-          borderBottom: "2px solid #ccc",
-          fontFamily: "monospace",
-          fontSize: "1rem",
-          height: "20vh",
-          overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
+          padding: '0 1rem 1rem 1rem',
+          backgroundColor: '#f0f0f0',
+          borderBottom: '2px solid #ccc',
+          fontFamily: 'monospace',
+          fontSize: '1rem',
+          height: '20vh',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
         }}
       >
         {/* Banner for last heard transcript */}
         <div
           style={{
-            background: "#e0e7ff",
-            color: "#1e293b",
-            padding: "0.2em 1em",
-            borderRadius: "6px",
+            background: '#e0e7ff',
+            color: '#1e293b',
+            padding: '0.2em 1em',
+            borderRadius: '6px',
             marginTop: 0,
-            marginBottom: "0.75em",
+            marginBottom: '0.75em',
             fontWeight: 600,
-            fontSize: "1rem",
-            minHeight: "2.2em",
-            display: "flex",
-            alignItems: "center",
+            fontSize: '1rem',
+            minHeight: '2.2em',
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
           {lastHeardTranscript.transcript
             ? `Heard: "${lastHeardTranscript.transcript}" (${
-                lastHeardTranscript.isFinal ? "final" : "interim"
+                lastHeardTranscript.isFinal ? 'final' : 'interim'
               })`
-            : "Waiting for speech..."}
+            : 'Waiting for speech...'}
         </div>
         {/* Debug table, no title */}
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>#</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>LogMAR</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>Transcript</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>Result</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>Acuity Guess</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>Next Proposal</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>CI Lower</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>CI Upper</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>CI Width</th>
-                <th style={{ textAlign: "left", paddingRight: "1em" }}>Hit Rate</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>#</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>LogMAR</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>Transcript</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>Result</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>Acuity Guess</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>Next Proposal</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>CI Lower</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>CI Upper</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>CI Width</th>
+                <th style={{ textAlign: 'left', paddingRight: '1em' }}>Hit Rate</th>
               </tr>
             </thead>
             <tbody>
               {speechDebugRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ color: "#666" }}>
+                  <td colSpan={10} style={{ color: '#666' }}>
                     No results yet...
                   </td>
                 </tr>
               ) : (
-                speechDebugRows.map((row) => (
+                speechDebugRows.map(row => (
                   <tr key={row.guessNumber}>
                     <td>{row.guessNumber}</td>
                     <td>{row.logMAR.toFixed(3)}</td>
                     <td>{row.transcript}</td>
-                    <td style={{ color: row.correctness === "CORRECT" ? "#16a34a" : "#dc2626" }}>
+                    <td style={{ color: row.correctness === 'CORRECT' ? '#16a34a' : '#dc2626' }}>
                       {row.correctness}
                     </td>
                     <td>{row.acuityGuess.toFixed(3)}</td>
@@ -647,18 +640,18 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         <button
           onClick={() => {
             const header = [
-              "#",
-              "LogMAR",
-              "Transcript",
-              "Result",
-              "Acuity Guess",
-              "Next Proposal",
-              "CI Lower",
-              "CI Upper",
-              "CI Width",
-              "Hit Rate",
+              '#',
+              'LogMAR',
+              'Transcript',
+              'Result',
+              'Acuity Guess',
+              'Next Proposal',
+              'CI Lower',
+              'CI Upper',
+              'CI Width',
+              'Hit Rate',
             ];
-            const rows = allSpeechDebugRows.map((row) => [
+            const rows = allSpeechDebugRows.map(row => [
               row.guessNumber,
               row.logMAR,
               row.transcript,
@@ -671,31 +664,31 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               `${row.totalCorrect} / ${row.guessNumber}`,
             ]);
             const csv = [header, ...rows]
-              .map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(","))
-              .join("\n");
+              .map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(','))
+              .join('\n');
             navigator.clipboard.writeText(csv);
           }}
           style={{
-            position: "absolute",
+            position: 'absolute',
             bottom: 8,
             right: 16,
-            fontSize: "0.85em",
-            padding: "0.25em 0.7em",
-            borderRadius: "4px",
-            border: "1px solid #bbb",
-            background: "#f8fafc",
-            color: "#334155",
-            cursor: "pointer",
+            fontSize: '0.85em',
+            padding: '0.25em 0.7em',
+            borderRadius: '4px',
+            border: '1px solid #bbb',
+            background: '#f8fafc',
+            color: '#334155',
+            cursor: 'pointer',
             opacity: 0.7,
-            transition: "opacity 0.2s, background 0.1s",
+            transition: 'opacity 0.2s, background 0.1s',
             zIndex: 10,
           }}
           title="Copy all debug rows as CSV"
-          onMouseOver={(e) => (e.currentTarget.style.opacity = "1")}
-          onMouseOut={(e) => (e.currentTarget.style.opacity = "0.7")}
-          onMouseDown={(e) => (e.currentTarget.style.background = "#dbeafe")}
-          onMouseUp={(e) => (e.currentTarget.style.background = "#f8fafc")}
-          onBlur={(e) => (e.currentTarget.style.background = "#f8fafc")}
+          onMouseOver={e => (e.currentTarget.style.opacity = '1')}
+          onMouseOut={e => (e.currentTarget.style.opacity = '0.7')}
+          onMouseDown={e => (e.currentTarget.style.background = '#dbeafe')}
+          onMouseUp={e => (e.currentTarget.style.background = '#f8fafc')}
+          onBlur={e => (e.currentTarget.style.background = '#f8fafc')}
         >
           Copy CSV
         </button>
@@ -703,30 +696,30 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
       {/* Centered chart row below debug box */}
       <div
         style={{
-          position: "relative",
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "center",
-          width: "100%",
-          height: "55vh",
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'center',
+          width: '100%',
+          height: '55vh',
         }}
       >
         <div
           style={{
-            padding: "1rem",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
+            padding: '1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
           }}
         >
           {/* Show current LogMAR above the progress boxes */}
           <div
             style={{
-              marginBottom: "0.5em",
+              marginBottom: '0.5em',
               fontWeight: 600,
-              fontSize: "1.1em",
-              color: "#334155",
-              letterSpacing: "0.02em",
+              fontSize: '1.1em',
+              color: '#334155',
+              letterSpacing: '0.02em',
             }}
           >
             LogMAR: {currentLogMAR.toFixed(3)}
@@ -735,10 +728,10 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         </div>
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
             flex: 1,
           }}
         >
@@ -748,12 +741,12 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 <div
                   key={currentLogMAR}
                   className="chart-row"
-                  style={{ "--row-index": currentLogMAR } as React.CSSProperties}
+                  style={{ '--row-index': currentLogMAR } as React.CSSProperties}
                 >
                   {currentRowLetters.map((item, colIndex) => (
                     <React.Fragment key={colIndex}>
                       <div
-                        className={`letter ${item.status || ""}`}
+                        className={`letter ${item.status || ''}`}
                         style={{
                           width: `${letterSize}px`,
                           height: `${letterSize}px`,
@@ -762,14 +755,14 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                         <LandoltCOptotype
                           orientation={
                             item.orientation as
-                              | "NORTH"
-                              | "NORTHEAST"
-                              | "EAST"
-                              | "SOUTHEAST"
-                              | "SOUTH"
-                              | "SOUTHWEST"
-                              | "WEST"
-                              | "NORTHWEST"
+                              | 'NORTH'
+                              | 'NORTHEAST'
+                              | 'EAST'
+                              | 'SOUTHEAST'
+                              | 'SOUTH'
+                              | 'SOUTHWEST'
+                              | 'WEST'
+                              | 'NORTHWEST'
                           }
                         />
                       </div>
@@ -780,7 +773,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                           style={{
                             width: `${letterSize}px`,
                             height: `${letterSize}px`,
-                            visibility: "hidden",
+                            visibility: 'hidden',
                           }}
                         >
                           <LandoltCOptotype orientation="NORTH" />
@@ -795,7 +788,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
             <div>Loading chart...</div>
           )}
         </div>
-        <div style={{ padding: "1rem" }}>
+        <div style={{ padding: '1rem' }}>
           <ConfidenceProgress
             progress={
               topPanelDebugInfo && initialConfidenceWidth
@@ -815,11 +808,11 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
         return (
           <div
             style={{
-              width: "100%",
-              backgroundColor: "#f0f0f0",
-              borderTop: "2px solid #ccc",
+              width: '100%',
+              backgroundColor: '#f0f0f0',
+              borderTop: '2px solid #ccc',
               zIndex: 1000,
-              height: "25vh",
+              height: '25vh',
             }}
           >
             {/* Prepare data for the psychometric function line */}
@@ -831,7 +824,7 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
               const lambda = UserLogMARGuessingEngine.LOGISTIC_PSYCHOMETRIC_LAMBDA;
 
               // Calculate the psychometric function at each LogMAR
-              const psychometricLine: ProbabilityGraphDatapoint[] = alphaLogMARs.map((logMAR) => ({
+              const psychometricLine: ProbabilityGraphDatapoint[] = alphaLogMARs.map(logMAR => ({
                 logMAR,
                 probability: calculateLogisticPsychometric(
                   logMAR,
@@ -842,13 +835,13 @@ const LogMARChart: React.FC<LogMARChartProps> = ({
                 ),
               }));
 
-              console.log("Generated psychometricLine:", {
+              console.log('Generated psychometricLine:', {
                 length: psychometricLine.length,
                 firstFew: psychometricLine.slice(0, 3),
               });
 
               const alphaProbabilitiesForGraph: ProbabilityGraphDatapoint[] = alphaLogMARs.map(
-                (logMAR) => {
+                logMAR => {
                   const probability = alphaProbabilities.get(logMAR);
                   if (probability === undefined) {
                     throw new Error("Couldn't find LogMAR in probability graph; this is a bug");
