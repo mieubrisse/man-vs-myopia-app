@@ -16,6 +16,7 @@ interface AssessmentResultsScreenProps {
   calibrationData: CalibrationData;
   luxDevice: LuxDevice | null;
   luxMeasurement: number | null;
+  notes: string;
 }
 
 const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
@@ -24,6 +25,7 @@ const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
   calibrationData,
   luxDevice,
   luxMeasurement,
+  notes,
 }) => {
   return (
     <PageLayout showNavbar={false}>
@@ -44,6 +46,7 @@ const AssessmentResultsScreen: React.FC<AssessmentResultsScreenProps> = ({
             pixelsPerCm={calibrationData?.pixelsPerCm}
             luxMeasurement={luxMeasurement}
             luxDevice={luxDevice?.deviceName}
+            notes={notes}
             className="single-result"
           />
         </div>
