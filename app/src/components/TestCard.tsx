@@ -7,7 +7,7 @@ interface TestCardProps {
   viewingConfigurationName?: string;
   distanceCentimeters?: number;
   pixelsPerCm?: number;
-  luxMeasurement?: number;
+  luxMeasurement?: number | null;
   luxDevice?: string;
   timestamp?: number;
   isLatest?: boolean;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ViewingConfigurationSelectionScreen.css';
-import { HomeLinkButton } from './buttons/HomeLinkButton.tsx';
-import Button from './buttons/Button.tsx';
+import { HomeLinkButton } from '../buttons/HomeLinkButton.tsx';
+import Button from '../buttons/Button.tsx';
 
 interface ViewingConfiguration {
   id: string;
