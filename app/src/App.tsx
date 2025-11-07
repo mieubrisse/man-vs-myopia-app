@@ -12,11 +12,13 @@ import { AuthProvider } from './lib/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute.tsx';
 import SignupPage from './pages/SignupPage.tsx';
 import LuxDevicesPage from './pages/LuxDevicesPage.tsx';
+import AdminPage from './pages/AdminUserDataManagement.tsx';
 
 const AppInner: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to={ROUTES.HOME} replace />} />
+      <Route path={ROUTES.ADMIN} element={<AdminPage />} />
       <Route
         path={ROUTES.HOME}
         element={
