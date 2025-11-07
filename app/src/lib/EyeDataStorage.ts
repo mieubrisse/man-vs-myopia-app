@@ -82,6 +82,31 @@ export class EyeDataStorage {
   }
 
   /**
+   * Get user data for any user by their ID (admin function)
+   */
+  public static async getUserDataById(userId: string): Promise<UserData | null> {
+    try {
+      const userDataDocRef = await this.getUserDataDocRef(userId);
+      const userDataDoc = await getDoc(userDataDocRef);
+      if (userDataDoc.exists()) {
+        return UserDataSchema.parse(userDataDoc.data());
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update user data for any user by their ID (admin function)
+   */
+  public static async updateUserDataById(userData: UserData): Promise<void> {
+    const validatedUserData = UserDataSchema.parse(userData);
+    await this.storeUserData(validatedUserData);
+  }
+
+  /**
    * Get all vision tests from storage, sorted by most recent first
    */
   static async getAllTests(): Promise<VisionTest[]> {

@@ -5,6 +5,7 @@ export const ROUTES = {
   LUX_DEVICES: '/app/lux-devices',
   ASSESSMENT: '/app/assessment',
   RESULTS: '/app/results',
+  ADMIN: '/app/admin',
   LOGIN: '/login',
   SIGNUP: '/signup',
 } as const;
