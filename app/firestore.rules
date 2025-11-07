@@ -5,10 +5,13 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if false;
     }
-    
-    // User-specific data - allow access only to the document owner
+
+    // User-specific data - allow access only to the document owner or ben@sageroom.software
     match /users/{userId}/{document=**} {
-      allow create, read, write: if request.auth != null && request.auth.uid == userId;
+      allow create, read, write: if request.auth != null && (
+        request.auth.uid == userId ||
+        request.auth.token.email == 'ben@sageroom.software'
+      );
     }
   }
 }
