@@ -63,12 +63,15 @@ To launch the local firebase emulator run `firebase emulators:start --export-on-
 
 TODO: Continuous deployment
 ```
-npm run build
-firebase deploy
+npm run build && pushd functions && npm run build && popd && firebase deploy
 ```
 
 #### Data structure
 
 Firestore data is stored per user in a collection called `user_vision_data`, ie user `123` will have a document called `user_vision_data/123`.
 
+#### Functions
 
+You can call the API to fetch user data with:
+
+> curl -v -X GET -H 'x-api-key: aebwer4oi5s' https://us-central1-myopia-data-streams.cloudfunctions.net/getUserDataBySecret\?userId\=wDcfaDtabGVJn0l3fcwD8iea5Dy2
