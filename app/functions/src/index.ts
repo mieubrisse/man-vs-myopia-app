@@ -4,7 +4,16 @@ setGlobalOptions({ maxInstances: 1 });
 import * as functions from 'firebase-functions';
 
 import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp } from 'firebase-admin';
+import * as admin from 'firebase-admin';
+
+let db: admin.firestore.Firestore;
+function getDb() {
+  if (!db) {
+    admin.initializeApp();
+    db = getFirestore();
+  }
+  return db;
+}
 
 const SHARED_SECRET = functions.params.defineString('SHARED_SECRET', { default: 'aebwer4oi5s' });
 
@@ -27,8 +36,7 @@ function verifySharedSecret(req: functions.https.Request): void {
 
 // Example: read a user’s data document by userId
 export const getUserDataBySecret = functions.https.onRequest(async (req, res) => {
-  initializeApp();
-  const db = getFirestore();
+  const db = getDb();
 
   try {
     // Only allow GET/POST as you prefer
