@@ -9,3 +9,11 @@ typings/
 # Node.js dependency directory
 node_modules/
 *.local
+
+# Local environment files. This repository is public, and the Firebase CLI reads
+# dotenv files from this directory at deploy time, so a committed one is a
+# published credential that the deployed function then authenticates against.
+# Credentials belong in Cloud Secret Manager -- see the Functions section of the
+# top-level README.
+.env
+.env.*

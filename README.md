@@ -68,10 +68,33 @@ npm run build && pushd functions && npm run build && popd && firebase deploy
 
 #### Data structure
 
-Firestore data is stored per user in a collection called `user_vision_data`, ie user `123` will have a document called `user_vision_data/123`.
+Firestore data is stored per user at `users/{userId}/data/userData`, ie user `123` will have a document at `users/123/data/userData`.
 
 #### Functions
 
-You can call the API to fetch user data with:
+The `getUserDataBySecret` endpoint is guarded by a shared secret. **This repository is
+public, so the secret is never stored here** -- not in this file, not as a default in the
+function source, and not in a dotenv file. It lives in a Cloud Secret Manager secret named
+`SHARED_SECRET` in the Firebase project, and the function declares it so that Firebase
+injects it at runtime. A deploy that has not been given the secret fails rather than
+falling back to anything committed.
 
-> curl -v -X GET -H 'x-api-key: aebwer4oi5s' https://us-central1-myopia-data-streams.cloudfunctions.net/getUserDataBySecret\?userId\=wDcfaDtabGVJn0l3fcwD8iea5Dy2
+To set or rotate it:
+
+```
+firebase functions:secrets:set SHARED_SECRET
+```
+
+That command also grants the function's runtime service account read access to the
+secret. If the secret is instead created through the Google Cloud console, that grant has
+to be added by hand -- the runtime service account needs
+`roles/secretmanager.secretAccessor` on the secret, and Cloud Run checks for it when the
+revision is created, so the grant must be in place *before* the next deploy.
+
+To call the API, substituting the secret's current value and the Firebase Auth UID of the
+user whose data you want:
+
+```
+curl -v -X GET -H "x-api-key: $SHARED_SECRET" \
+  "https://us-central1-myopia-data-streams.cloudfunctions.net/getUserDataBySecret?userId=$USER_ID"
+```
