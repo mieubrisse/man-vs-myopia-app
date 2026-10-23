@@ -12,7 +12,7 @@ steps:
     args: ['run', 'build']
 
   # Install Firebase CLI and deploy
-  - name: 'node:24  '
+  - name: 'node:24'
     dir: 'app'
     entrypoint: 'bash'
     args:
