@@ -61,9 +61,19 @@ To launch the local firebase emulator run `firebase emulators:start --export-on-
 
 #### Deployment
 
-TODO: Continuous deployment
+The site deploys itself: Vercel builds every push and a merge to `main` ships to
+production. Firebase Hosting is a second, older origin for the same app and is not
+updated by that pipeline.
+
+Firestore rules are not covered by it either, so changes to `firestore.rules` take effect
+only when deployed by hand:
 ```
-npm run build && pushd functions && npm run build && popd && firebase deploy
+firebase deploy --only firestore:rules
+```
+
+To deploy hosting and rules to Firebase instead:
+```
+npm run build && firebase deploy
 ```
 
 #### Data structure
@@ -72,29 +82,11 @@ Firestore data is stored per user at `users/{userId}/data/userData`, ie user `12
 
 #### Functions
 
-The `getUserDataBySecret` endpoint is guarded by a shared secret. **This repository is
-public, so the secret is never stored here** -- not in this file, not as a default in the
-function source, and not in a dotenv file. It lives in a Cloud Secret Manager secret named
-`SHARED_SECRET` in the Firebase project, and the function declares it so that Firebase
-injects it at runtime. A deploy that has not been given the secret fails rather than
-falling back to anything committed.
+There are none. A `getUserDataBySecret` HTTP function used to live here, gated by a
+shared secret and reading any user's document through the Firebase Admin SDK, which
+bypasses Firestore security rules. It was deleted on 2026-10-31 along with its
+`SHARED_SECRET` secret: the secret had been published in this public repository, the
+function was invokable by `allUsers` from anywhere, and nothing in the app called it.
 
-To set or rotate it:
-
-```
-firebase functions:secrets:set SHARED_SECRET
-```
-
-That command also grants the function's runtime service account read access to the
-secret. If the secret is instead created through the Google Cloud console, that grant has
-to be added by hand -- the runtime service account needs
-`roles/secretmanager.secretAccessor` on the secret, and Cloud Run checks for it when the
-revision is created, so the grant must be in place *before* the next deploy.
-
-To call the API, substituting the secret's current value and the Firebase Auth UID of the
-user whose data you want:
-
-```
-curl -v -X GET -H "x-api-key: $SHARED_SECRET" \
-  "https://us-central1-myopia-data-streams.cloudfunctions.net/getUserDataBySecret?userId=$USER_ID"
-```
+If an external read path is ever needed again, build it with per-user authentication
+rather than a shared bearer token. See Linear KEV-144.
