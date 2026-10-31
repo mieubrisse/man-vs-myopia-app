@@ -61,9 +61,19 @@ To launch the local firebase emulator run `firebase emulators:start --export-on-
 
 #### Deployment
 
-TODO: Continuous deployment
+The site deploys itself: Vercel builds every push and a merge to `main` ships to
+production. Firebase Hosting is a second, older origin for the same app and is not
+updated by that pipeline.
+
+Firestore rules are not covered by it either, so changes to `firestore.rules` take effect
+only when deployed by hand:
 ```
-npm run build && pushd functions && npm run build && popd && firebase deploy
+firebase deploy --only firestore:rules
+```
+
+To deploy hosting and rules to Firebase instead:
+```
+npm run build && firebase deploy
 ```
 
 #### Data structure
