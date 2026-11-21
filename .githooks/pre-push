@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Runs the same `make check` as CI's required `check` job, so a break shows up
+# before the push rather than after. `git push --no-verify` skips it; CI is the gate.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+make check

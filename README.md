@@ -16,11 +16,12 @@ A web app for measuring your own visual acuity at home, to track myopia over tim
 ## Run locally
 
 ```
-npm install -g firebase-tools
 cd app
 npm install
-firebase emulators:start   # Auth :9099, Firestore :8080
-npm run dev                # in a second terminal
+npx firebase-tools emulators:start   # Auth :9099, Firestore :8080; needs Java
+npm run dev                          # in a second terminal
 ```
+
+Contributing, checks and the deploy path are in [`AGENTS.md`](AGENTS.md).
 
 A personal tool built for one person's n=1 experiment. Not medical advice.

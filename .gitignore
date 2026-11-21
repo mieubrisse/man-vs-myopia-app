@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code worktrees (agents work in parallel worktrees under here)
+.claude/worktrees/
