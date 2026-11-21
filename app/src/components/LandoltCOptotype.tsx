@@ -1,7 +1,7 @@
-import React from "react";
+import React from 'react';
 
 const cPath =
-  "M 244.949 -50 A 250 250 0 1 0 244.949 50 L 141.4214 50 A 150 150 0 1 1 141.4214 -50 Z";
+  'M 244.949 -50 A 250 250 0 1 0 244.949 50 L 141.4214 50 A 150 150 0 1 1 141.4214 -50 Z';
 
 export const orientationToRotation: Record<string, number> = {
   NORTH: 270,
@@ -16,28 +16,21 @@ export const orientationToRotation: Record<string, number> = {
 
 export interface LandoltCOptotypeProps extends React.SVGProps<SVGSVGElement> {
   orientation:
-    | "NORTH"
-    | "NORTHEAST"
-    | "EAST"
-    | "SOUTHEAST"
-    | "SOUTH"
-    | "SOUTHWEST"
-    | "WEST"
-    | "NORTHWEST";
+    | 'NORTH'
+    | 'NORTHEAST'
+    | 'EAST'
+    | 'SOUTHEAST'
+    | 'SOUTH'
+    | 'SOUTHWEST'
+    | 'WEST'
+    | 'NORTHWEST';
 }
 
-export const LandoltCOptotype: React.FC<LandoltCOptotypeProps> = ({
-  orientation,
-  ...svgProps
-}) => {
+export const LandoltCOptotype: React.FC<LandoltCOptotypeProps> = ({ orientation, ...svgProps }) => {
   const rotation = orientationToRotation[orientation];
   return (
     <svg viewBox="-250 -250 500 500" {...svgProps}>
-      <path
-        d={cPath}
-        fill="currentColor"
-        transform={`rotate(${rotation} 0 0)`}
-      />
+      <path d={cPath} fill="currentColor" transform={`rotate(${rotation} 0 0)`} />
     </svg>
   );
 };

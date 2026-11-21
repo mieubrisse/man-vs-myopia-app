@@ -67,7 +67,7 @@ const AdminPage: React.FC = () => {
               <input
                 type="text"
                 value={userId}
-                onChange={(e) => setUserId(e.target.value)}
+                onChange={e => setUserId(e.target.value)}
                 style={{
                   marginLeft: '10px',
                   padding: '5px',
@@ -88,20 +88,16 @@ const AdminPage: React.FC = () => {
             </button>
           </div>
 
-          {error && (
-            <div style={{ color: 'red', marginTop: '10px' }}>{error}</div>
-          )}
+          {error && <div style={{ color: 'red', marginTop: '10px' }}>{error}</div>}
 
-          {success && (
-            <div style={{ color: 'green', marginTop: '10px' }}>{success}</div>
-          )}
+          {success && <div style={{ color: 'green', marginTop: '10px' }}>{success}</div>}
 
           {userData && (
             <div style={{ marginTop: '20px' }}>
               <h2>User Data (JSON):</h2>
               <textarea
                 value={jsonText}
-                onChange={(e) => setJsonText(e.target.value)}
+                onChange={e => setJsonText(e.target.value)}
                 style={{
                   width: '100%',
                   minHeight: '400px',
