@@ -25,8 +25,9 @@ describe('calculateLetterPixelSizeForLogMAR', () => {
   });
 
   it('handles negative LogMAR (better than 6/6 at 6m)', () => {
+    // LogMAR 0.0 is 35px at this distance (first test); -0.2 is 10^-0.2 of that.
     const px = calculateLetterPixelSizeForLogMAR(-0.2, 600, 40);
-    expect(px).toBeLessThan(8);
+    expect(px).toBe(22);
   });
 
   it('throws if viewingDistanceCm is zero', () => {
