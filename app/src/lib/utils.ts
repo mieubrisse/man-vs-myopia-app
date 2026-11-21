@@ -13,3 +13,5 @@ export function assertNotNull<T>(
     throw new Error(message || 'Value must not be null or undefined');
   }
 }
+
+export const deliberatelyBroken: number = "not a number";

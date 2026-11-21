@@ -12,3 +12,5 @@ service cloud.firestore {
     }
   }
 }
+
+// demo: unlabelled rules change
