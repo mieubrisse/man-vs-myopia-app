@@ -1,0 +1,69 @@
+name: Firestore rules gate
+
+# Merging deploys the site, not Firestore's rules or indexes: those ship only
+# when someone with Firebase credentials deploys them (AGENTS.md, "Firestore
+# rules do not deploy on merge"). This check fails any PR that changes them
+# until the PR carries the label saying that deploy happened, so merging can
+# never quietly look like shipping them.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  # To take the label off when a later push changes the rules it vouched for.
+  pull-requests: write
+
+jobs:
+  # Required by the main ruleset (.github/rulesets/main.json).
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fail if Firestore config changed without a recorded deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_ACTION: ${{ github.event.action }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.event.after }}
+          IS_DEPLOY_RECORDED: ${{ contains(github.event.pull_request.labels.*.name, 'firestore-rules-deployed') }}
+        run: |
+          firestore_rel_filepaths=(app/firestore.rules app/firestore.indexes.json)
+
+          # HEAD is GitHub's merge commit; its first parent is the base it merged against.
+          changed_filepaths="$(git diff --name-only HEAD^1 HEAD -- "${firestore_rel_filepaths[@]}")"
+          if [[ -z "${changed_filepaths}" ]]; then
+            echo "No Firestore rules or indexes changed."
+            exit 0
+          fi
+
+          # The label vouches for the rules as they were when it was added. A push that
+          # changes them again (or whose diff cannot be computed) voids it.
+          if [[ "${EVENT_ACTION}" == "synchronize" && "${IS_DEPLOY_RECORDED}" == "true" ]]; then
+            set +e
+            git diff --quiet "${PUSH_BEFORE_SHA}" "${PUSH_AFTER_SHA}" -- "${firestore_rel_filepaths[@]}"
+            push_diff_status=$?
+            set -e
+            if [[ "${push_diff_status}" -ne 0 ]]; then
+              gh pr edit "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --remove-label firestore-rules-deployed
+              echo "::error::This push changed Firestore config after it was labelled deployed; the label was removed."
+              echo "Deploy the rules as they now stand (AGENTS.md), then add 'firestore-rules-deployed' again."
+              exit 1
+            fi
+          fi
+
+          if [[ "${IS_DEPLOY_RECORDED}" == "true" ]]; then
+            echo "Firestore config changed and the PR is labelled firestore-rules-deployed:"
+            echo "${changed_filepaths}"
+            exit 0
+          fi
+          echo "::error::This PR changes Firestore config that merging does NOT deploy:"
+          echo "${changed_filepaths}"
+          echo "Production keeps enforcing the old rules until someone with Firebase credentials deploys them."
+          echo "Follow AGENTS.md, 'Firestore rules do not deploy on merge', then add the label 'firestore-rules-deployed' to this PR."
+          exit 1

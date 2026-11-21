@@ -21,7 +21,7 @@ const LOGISTIC_PSYCHOMETRIC_BETA_LOGMAR_THOUSANDTHS: number = 0.08; // TODO dete
 
 function normalizeVector(vector: number[]): number[] {
   const sum = vector.reduce((prevVal, curr) => prevVal + curr, 0);
-  return sum ? vector.map((val) => val / sum) : vector;
+  return sum ? vector.map(val => val / sum) : vector;
 }
 
 // See https://en.wikipedia.org/wiki/Entropy_(information_theory)
@@ -230,11 +230,11 @@ export class UserLogMARGuessingEngine {
     confidenceInterval: number
   ) {
     if (alphaPriors.size < 2) {
-      throw new Error("Must have at least two alpha priors");
+      throw new Error('Must have at least two alpha priors');
     }
 
     const alphaLogMARs: number[] = [...alphaPriors.keys()].sort((a, b) => a - b);
-    const alphaLogMARThousandths = alphaLogMARs.map((alphaLogMAR) => {
+    const alphaLogMARThousandths = alphaLogMARs.map(alphaLogMAR => {
       const logMARThousandths = Math.floor(alphaLogMAR * MAXIMUM_LOGMAR_PRECISION);
       if (logMARThousandths !== alphaLogMAR * MAXIMUM_LOGMAR_PRECISION) {
         throw new Error(
@@ -245,7 +245,7 @@ export class UserLogMARGuessingEngine {
       return logMARThousandths;
     });
 
-    const alphaProbabilities: number[] = alphaLogMARs.map((alphaLogMAR) => {
+    const alphaProbabilities: number[] = alphaLogMARs.map(alphaLogMAR => {
       const alphaProbability = alphaPriors.get(alphaLogMAR);
       if (alphaProbability === undefined) {
         throw new Error(

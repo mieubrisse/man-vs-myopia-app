@@ -1,7 +1,8 @@
 @font-face {
-  font-family: "Optician Sans";
-  src: url("/fonts/Optiker-K.ttf") format("truetype"),
-    url("/fonts/Optiker-K.woff2") format("woff2");
+  font-family: 'Optician Sans';
+  src:
+    url('/fonts/Optiker-K.ttf') format('truetype'),
+    url('/fonts/Optiker-K.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
 }
@@ -30,7 +31,7 @@
 
 .letter {
   /* Font size is now set dynamically via inline styles */
-  font-family: "Optician Sans", Arial, sans-serif;
+  font-family: 'Optician Sans', Arial, sans-serif;
   font-weight: bold;
   color: #000;
   line-height: inherit; /* Use the line-height set by the parent */
@@ -45,7 +46,7 @@
 
 .spacer-char {
   /* Font size is now set dynamically via inline styles */
-  font-family: "Optician Sans", Arial, sans-serif;
+  font-family: 'Optician Sans', Arial, sans-serif;
   color: transparent; /* Make the character invisible */
   line-height: inherit; /* Use the line-height set by the parent */
   margin: 0;

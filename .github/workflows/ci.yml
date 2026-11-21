@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Required by the main ruleset (.github/rulesets/main.json).
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Narrow CI: when only docs changed, finish green instead of skipping the
+      # job, because a skipped required check stays Pending and blocks merge.
+      - name: Decide whether anything that ships changed
+        id: scope
+        env:
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          # On a PR, HEAD is GitHub's merge commit and its first parent the base it merged against.
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            base_ref="HEAD^1"
+          else
+            base_ref="${PUSH_BEFORE_SHA}"
+          fi
+          set +e
+          git diff --quiet "${base_ref}" HEAD -- . ':!*.md' ':!docs' ':!laboratory-config'
+          diff_status=$?
+          set -e
+          if [[ "${diff_status}" -eq 0 ]]; then
+            echo "Only docs changed since '${base_ref}'; nothing to check."
+            echo "is_relevant=false" >> "${GITHUB_OUTPUT}"
+          else
+            # 1 means relevant changes; anything else means the diff itself failed, so check everything.
+            echo "is_relevant=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.scope.outputs.is_relevant == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: make check
+        if: steps.scope.outputs.is_relevant == 'true'
+        run: make check

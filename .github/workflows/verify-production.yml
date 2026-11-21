@@ -1,0 +1,32 @@
+name: Verify production deploy
+
+# Vercel deploys every merge to main on its own. This proves the merged commit
+# actually reached production, and fails loudly when it did not.
+
+on:
+  push:
+    branches: [main]
+
+# A newer merge supersedes the deploy an older run is waiting for.
+concurrency:
+  group: verify-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: make build
+
+      - run: scripts/verify-production-deploy.sh
