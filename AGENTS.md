@@ -31,10 +31,10 @@ To click through the app locally: `npx firebase-tools emulators:start` in `app/`
 ## Shipping a change
 
 1. Branch in a worktree, open a PR. Vercel builds a preview for every push.
-2. The `main` ruleset requires the `check` and `firestore-rules` jobs green, a pull request, no force-push and no deletion. Merge with plain `gh pr merge`. `gh` acts as Kevin, the repo admin, so the ruleset can be bypassed with `--admin` or edited: never do either. A blocked merge is the signal, not an obstacle.
+2. The `main` ruleset requires the `check` and `firestore-rules` jobs green, a pull request, no force-push and no deletion. Merge with `gh pr merge --merge`. `gh` acts as Kevin, the repo admin, so an agent could edit or disable the ruleset: never do it, and never pass `--admin`. A blocked merge is the signal, not an obstacle.
 3. Before merging, have an agent that did not write the change review the diff in a fresh context. GitHub cannot enforce this yet: agents and Kevin share one account and GitHub forbids approving your own PR (identity work is Linear project P-KEV-24).
 4. **Merge is the deploy.** Vercel ships `main` to https://man-vs-myopia-app.vercel.app, usually within a minute.
-5. **Verify it landed.** The `Verify production deploy` workflow runs on every push to `main`: it builds the commit and waits until production serves a byte-identical `index.html` (Vite names assets by content hash) and every asset loads. Read its result with `gh run list --workflow verify-production.yml --branch main`. Locally: `make build && scripts/verify-production-deploy.sh`.
+5. **Verify it landed.** The `Verify production deploy` workflow runs on every push to `main`: it builds the commit and waits until production serves a byte-identical `index.html` (Vite names assets by content hash) and every asset loads. Read its result with `gh run list --workflow verify-production.yml --branch main`. Locally: `make build && scripts/verify-production-deploy.sh`. This relies on CI and Vercel producing the same bundle, which holds while the build reads no Vercel-only environment variables; adding a `VITE_*` variable on Vercel would make every verify time out.
 6. **Roll back by revert.** `git revert <sha>` (with `-m 1` when it is a merge commit) on a new branch, PR, same gates, merge; the verify workflow then confirms production serves the reverted build. No special access needed.
 
 ## Firestore rules do not deploy on merge
@@ -49,6 +49,8 @@ npx firebase-tools deploy --only firestore:rules,firestore:indexes --project myo
 ```
 
 The same deploy is two REST calls against `firebaserules.googleapis.com` (create a ruleset, then point the `cloud.firestore` release at it): https://firebase.google.com/docs/reference/rules/rest.
+
+A push that changes either file after the label was added removes the label and fails the check, so the deploy always matches what merges. Nothing yet compares the live rules with `main`: if a labelled PR is abandoned, redeploy `main`'s rules by hand.
 
 ## Agent-ready status
 

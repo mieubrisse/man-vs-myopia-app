@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   # Required by the main ruleset (.github/rulesets/main.json).
   check:
@@ -19,14 +22,20 @@ jobs:
       - name: Decide whether anything that ships changed
         id: scope
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
+          # On a PR, HEAD is GitHub's merge commit and its first parent the base it merged against.
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            base_ref="HEAD^1"
+          else
+            base_ref="${PUSH_BEFORE_SHA}"
+          fi
           set +e
-          git diff --quiet "${BASE_SHA}" HEAD -- . ':!*.md' ':!docs' ':!laboratory-config'
+          git diff --quiet "${base_ref}" HEAD -- . ':!*.md' ':!docs' ':!laboratory-config'
           diff_status=$?
           set -e
           if [[ "${diff_status}" -eq 0 ]]; then
-            echo "Only docs changed since '${BASE_SHA}'; nothing to check."
+            echo "Only docs changed since '${base_ref}'; nothing to check."
             echo "is_relevant=false" >> "${GITHUB_OUTPUT}"
           else
             # 1 means relevant changes; anything else means the diff itself failed, so check everything.

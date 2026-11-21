@@ -38,7 +38,12 @@ echo "Production index.html matches this build."
 
 asset_paths="$(grep --only-matching --extended-regexp '/assets/[^"]+' "${expected_index_filepath}")"
 for asset_path in ${asset_paths}; do
-    curl --fail --silent --show-error --output /dev/null "${PRODUCTION_URL}${asset_path}"
-    echo "Loaded '${PRODUCTION_URL}${asset_path}'"
+    content_type="$(curl --fail --silent --show-error --output /dev/null --write-out '%{content_type}' "${PRODUCTION_URL}${asset_path}")"
+    # A catch-all SPA rewrite answers a missing asset with index.html and a 200.
+    if [[ "${content_type}" == text/html* ]]; then
+        echo "ERROR: '${PRODUCTION_URL}${asset_path}' came back as '${content_type}', so the asset is missing." >&2
+        exit 1
+    fi
+    echo "Loaded '${PRODUCTION_URL}${asset_path}' as '${content_type}'"
 done
 echo "Production at '${PRODUCTION_URL}' serves this commit's build."

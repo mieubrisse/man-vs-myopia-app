@@ -12,6 +12,9 @@ concurrency:
   group: verify-production
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   verify-production:
     runs-on: ubuntu-latest
