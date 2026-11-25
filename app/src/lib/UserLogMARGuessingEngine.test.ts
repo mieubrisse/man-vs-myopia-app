@@ -304,9 +304,7 @@ describe('UserLogMARGuessingEngine', () => {
   });
 
   describe('proposeNextTrialLogMAR', () => {
-    // Known failing on main; whether the engine or this expectation is wrong is KEV-360.
-    // it.fails keeps it visible: once they agree, this test fails and the marker must come off.
-    it.fails('sample case 1', () => {
+    it('sample case 1', () => {
       const priors = new Map<number, number>([
         [-0.1, 0.5],
         [0.1, 0.5],
@@ -316,7 +314,22 @@ describe('UserLogMARGuessingEngine', () => {
 
       const proposal = engine.proposeNextTrialLogMAR();
 
-      expect(proposal).toBe(0.2);
+      // =============== BY-HAND CALCULATIONS ===================
+      // (NOTE: assumes beta == 80 per LogMAR and lambda == 0.01, which are hardcoded at time of test writing)
+      // QUEST+ (Watson 2017) shows whichever size in its grid, here {-0.1, 0.1}, leaves the lowest expected posterior
+      // entropy. With gamma = 1/8, the chance of a correct answer is 1/8 + (1 - 0.01 - 1/8) / 2 = 0.5575 for a size
+      // equal to alpha, 0.99 for a size 0.2 above alpha and 0.125 for a size 0.2 below it (to 6 decimal places).
+      //
+      // Showing -0.1:
+      //   correct: 0.5 * [0.5575, 0.125] = [0.27875, 0.0625], sum = 0.34125, entropy once normalized = 0.476137
+      //   wrong:   0.5 * [0.4425, 0.875] = [0.22125, 0.4375], sum = 0.65875, entropy once normalized = 0.638253
+      //   expected entropy = 0.34125 * 0.476137 + 0.65875 * 0.638253 = 0.582931
+      //
+      // Showing 0.1:
+      //   correct: 0.5 * [0.99, 0.5575] = [0.495, 0.27875], sum = 0.77375, entropy once normalized = 0.653567
+      //   wrong:   0.5 * [0.01, 0.4425] = [0.005, 0.22125], sum = 0.22625, entropy once normalized = 0.106101
+      //   expected entropy = 0.77375 * 0.653567 + 0.22625 * 0.106101 = 0.529703
+      expect(proposal).toBe(0.1);
     });
 
     it('proposes with a flat probability distribution (necessary when evaluating a new user)', () => {
@@ -367,47 +380,49 @@ describe('UserLogMARGuessingEngine', () => {
   });
 
   describe('End-to-end tests', () => {
-    // Known failing on main; whether the engine or this expectation is wrong is KEV-360.
-    // it.fails keeps it visible: once they agree, this test fails and the marker must come off.
-    it.fails(
-      'verifies the confidence interval after getting two symbols right at 0.4 logMAR',
-      () => {
-        const alphaPriors = new Map<number, number>();
-        const minLogMAR = -0.3;
-        const maxLogMAR = 1.2;
-        const step = 0.01;
+    it('verifies the confidence interval after getting two symbols right at 0.4 logMAR', () => {
+      const alphaPriors = new Map<number, number>();
+      const minLogMAR = -0.3;
+      const maxLogMAR = 1.2;
+      const step = 0.01;
 
-        // A uniform prior
-        let totalEntries = 0;
-        for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
-          totalEntries++;
-        }
-        const probability = 1 / totalEntries;
-
-        for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
-          // Round to avoid floating point issues
-          const roundedLogMAR = Math.round(logMAR * 1000) / 1000;
-          alphaPriors.set(roundedLogMAR, probability);
-        }
-
-        const numDistinctOptotypes = 8; // Landolt C has 8 orientations
-        const confidenceInterval = 0.95; // 95% confidence
-
-        const engine = new UserLogMARGuessingEngine(
-          alphaPriors,
-          numDistinctOptotypes,
-          confidenceInterval
-        );
-
-        engine.updateGivenTrialResult(0.4, true);
-        engine.updateGivenTrialResult(0.4, true);
-
-        const result = engine.guessUserLogMAR();
-
-        expect(result.guessedLogMAR).toBeCloseTo(0.045, 4);
-        expect(result.intervalLowerBound).toBeCloseTo(-0.2885797, 4);
-        expect(result.intervalUpperBound).toBeCloseTo(0.5092688, 4);
+      // A uniform prior
+      let totalEntries = 0;
+      for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
+        totalEntries++;
       }
-    );
+      const probability = 1 / totalEntries;
+
+      for (let logMAR = minLogMAR; logMAR <= maxLogMAR; logMAR += step) {
+        // Round to avoid floating point issues
+        const roundedLogMAR = Math.round(logMAR * 1000) / 1000;
+        alphaPriors.set(roundedLogMAR, probability);
+      }
+
+      const numDistinctOptotypes = 8; // Landolt C has 8 orientations
+      const confidenceInterval = 0.95; // 95% confidence
+
+      const engine = new UserLogMARGuessingEngine(
+        alphaPriors,
+        numDistinctOptotypes,
+        confidenceInterval
+      );
+
+      engine.updateGivenTrialResult(0.4, true);
+      engine.updateGivenTrialResult(0.4, true);
+
+      const result = engine.guessUserLogMAR();
+
+      // (NOTE: assumes beta == 80 per LogMAR and lambda == 0.01, which are hardcoded at time of test writing)
+      // The prior is uniform over alpha = -0.30, -0.29, ..., 1.19 (150 values: floating-point error in the loops
+      // above stops them short of 1.20). After two correct answers at 0.4, each alpha's posterior is proportional to
+      //   (1/8 + (1 - 0.01 - 1/8) / (1 + exp(-80 * (0.4 - alpha))))^2
+      // Normalizing that outside this codebase to 40 digits, and separately with jsquest-plus, gives:
+      //   mean = 0.0565362, which the engine rounds to 0.057
+      //   95% interval = [-0.2872967, 0.3965015], with each alpha's mass spread evenly across its 0.01-wide bucket
+      expect(result.guessedLogMAR).toBeCloseTo(0.057, 4);
+      expect(result.intervalLowerBound).toBeCloseTo(-0.2872967, 4);
+      expect(result.intervalUpperBound).toBeCloseTo(0.3965015, 4);
+    });
   });
 });
