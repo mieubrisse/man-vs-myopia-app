@@ -24,7 +24,7 @@ Everything goes through the root `Makefile`, and CI runs the same targets:
 
 `npm --prefix app run format` fixes formatting. The `pre-push` hook runs `make check`; `git push --no-verify` skips it, CI does not. Hooks and targets work from any git worktree; Claude Code's worktrees go under `.claude/worktrees/`, which is ignored.
 
-Unit tests are Vitest files beside the code (`*.test.ts`). Two QUEST+ tests are marked `it.fails` because the engine and their expected values disagree; KEV-360 decides which is wrong. When they agree, `it.fails` turns red and must come off.
+Unit tests are Vitest files beside the code (`*.test.ts`). Two QUEST+ tests in `app/src/lib/UserLogMARGuessingEngine.test.ts` derive their expected values in comments, assuming the engine's hardcoded beta (80 per LogMAR) and lambda (0.01); if either is retuned, re-derive the expectations the same way instead of pasting in the engine's new output.
 
 To click through the app locally: `npx firebase-tools emulators:start` in `app/` (needs Java; never install `firebase-tools` globally), then `npm --prefix app run dev`.
 
