@@ -14,11 +14,18 @@ import SignupPage from './pages/SignupPage.tsx';
 import LuxDevicesPage from './pages/LuxDevicesPage.tsx';
 import AdminPage from './pages/AdminUserDataManagement.tsx';
 
-const AppInner: React.FC = () => {
+export const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to={ROUTES.HOME} replace />} />
-      <Route path={ROUTES.ADMIN} element={<AdminPage />} />
+      <Route
+        path={ROUTES.ADMIN}
+        element={
+          <ProtectedRoute>
+            <AdminPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path={ROUTES.HOME}
         element={
@@ -71,6 +78,9 @@ const AppInner: React.FC = () => {
       {/* Public routes */}
       <Route path={ROUTES.LOGIN} element={<LoginPage />} />
       <Route path={ROUTES.SIGNUP} element={<SignupPage />} />
+
+      {/* Unknown paths go home, which sends a signed-out visitor on to login */}
+      <Route path="*" element={<Navigate to={ROUTES.HOME} replace />} />
     </Routes>
   );
 };
@@ -79,7 +89,7 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
-        <AppInner />
+        <AppRoutes />
       </Router>
     </AuthProvider>
   );
