@@ -12,10 +12,12 @@ export const ViewingConfigurationSchema = z.object({
 
 const ViewingConfigurationsDocSchema = z.object({
   configurations: z.array(ViewingConfigurationSchema),
+  // Ids deleted by the user. A browser still holding a pre-cloud copy must not bring them back.
+  deletedIds: z.array(z.string()).default([]),
 });
 
 export type ViewingConfiguration = z.infer<typeof ViewingConfigurationSchema>;
-type ViewingConfigurationsDoc = z.infer<typeof ViewingConfigurationsDocSchema>;
+export type ViewingConfigurationsDoc = z.infer<typeof ViewingConfigurationsDocSchema>;
 
 /**
  * Where every version of the app before KEV-953 kept viewing configurations. localStorage is
@@ -25,9 +27,9 @@ type ViewingConfigurationsDoc = z.infer<typeof ViewingConfigurationsDocSchema>;
 export const LEGACY_LOCAL_STORAGE_KEY = 'viewingConfigurations';
 
 /**
- * Remembers, per user and per browser, the exact legacy value already imported into the cloud.
- * Importing again only when the legacy value changes is what stops a configuration deleted on
- * another device from being resurrected by this browser's untouched copy.
+ * Remembers, per user and per browser, the exact legacy value already imported into the cloud,
+ * so an unchanged legacy value is not re-read on every load. Deletions are guarded separately,
+ * by `deletedIds` in the cloud document, which every browser sees.
  */
 export const importedMarkerKey = (userId: string): string =>
   `viewingConfigurationsImportedToCloud:${userId}`;
@@ -45,12 +47,12 @@ const getUserId = (): string => {
   return userId;
 };
 
-/** A missing document is an empty list; a malformed one throws, so nothing writes over it. */
-const parseCloudConfigurations = (snapshot: DocumentSnapshot): ViewingConfiguration[] => {
+/** A missing document is an empty one; a malformed one throws, so nothing writes over it. */
+const parseCloudDoc = (snapshot: DocumentSnapshot): ViewingConfigurationsDoc => {
   if (!snapshot.exists()) {
-    return [];
+    return { configurations: [], deletedIds: [] };
   }
-  return ViewingConfigurationsDocSchema.parse(snapshot.data()).configurations;
+  return ViewingConfigurationsDocSchema.parse(snapshot.data());
 };
 
 /**
@@ -78,21 +80,23 @@ export const readLegacyLocalConfigurations = (): ViewingConfiguration[] | null =
   });
 };
 
-/** Adds the local entries the cloud lacks, by id. Never removes or replaces a cloud entry. */
+/**
+ * Adds the local entries the cloud lacks, by id, skipping any the user has deleted.
+ * Never removes or replaces a cloud entry.
+ */
 export const mergeLocalIntoCloud = (
-  cloud: ViewingConfiguration[],
+  cloud: ViewingConfigurationsDoc,
   local: ViewingConfiguration[]
-): ViewingConfiguration[] => {
-  const cloudIds = new Set(cloud.map(config => config.id));
-  const seenLocalIds = new Set<string>();
+): ViewingConfigurationsDoc => {
+  const skipIds = new Set([...cloud.configurations.map(config => config.id), ...cloud.deletedIds]);
   const additions = local.filter(config => {
-    if (cloudIds.has(config.id) || seenLocalIds.has(config.id)) {
+    if (skipIds.has(config.id)) {
       return false;
     }
-    seenLocalIds.add(config.id);
+    skipIds.add(config.id);
     return true;
   });
-  return [...cloud, ...additions];
+  return { ...cloud, configurations: [...cloud.configurations, ...additions] };
 };
 
 /**
@@ -111,46 +115,57 @@ export const loadViewingConfigurations = async (): Promise<ViewingConfiguration[
     localStorage.getItem(importedMarkerKey(userId)) !== rawLegacy;
 
   if (!needsImport) {
-    return parseCloudConfigurations(await getDoc(docRef));
+    return parseCloudDoc(await getDoc(docRef)).configurations;
   }
 
   const merged = await runTransaction(db, async transaction => {
-    const cloud = parseCloudConfigurations(await transaction.get(docRef));
+    const cloud = parseCloudDoc(await transaction.get(docRef));
     const result = mergeLocalIntoCloud(cloud, legacyConfigurations);
-    if (result.length !== cloud.length) {
-      const update: ViewingConfigurationsDoc = { configurations: result };
-      transaction.set(docRef, update);
+    if (result.configurations.length !== cloud.configurations.length) {
+      transaction.set(docRef, result);
     }
-    return result;
+    return result.configurations;
   });
   // Only after the cloud write has committed, or a failed import would never be retried.
-  localStorage.setItem(importedMarkerKey(userId), rawLegacy);
+  try {
+    localStorage.setItem(importedMarkerKey(userId), rawLegacy);
+  } catch (e) {
+    // The import succeeded; without the marker it is merely re-checked on the next load.
+    console.error('Could not record the viewing configuration import marker:', e);
+  }
   return merged;
 };
 
 /** Read-modify-write inside one transaction, so a change made on another device is kept. */
-const updateCloudConfigurations = async (
-  update: (current: ViewingConfiguration[]) => ViewingConfiguration[]
+const updateCloudDoc = async (
+  update: (current: ViewingConfigurationsDoc) => ViewingConfigurationsDoc
 ): Promise<ViewingConfiguration[]> => {
   const docRef = getDocRef(getUserId());
   return runTransaction(db, async transaction => {
-    const current = parseCloudConfigurations(await transaction.get(docRef));
-    const next = update(current);
-    const newDoc: ViewingConfigurationsDoc = { configurations: next };
-    transaction.set(docRef, newDoc);
-    return next;
+    const next = update(parseCloudDoc(await transaction.get(docRef)));
+    transaction.set(docRef, next);
+    return next.configurations;
   });
 };
 
 export const addViewingConfiguration = (
   configuration: ViewingConfiguration
 ): Promise<ViewingConfiguration[]> =>
-  updateCloudConfigurations(current => [
+  updateCloudDoc(current => ({
     ...current,
-    ViewingConfigurationSchema.parse(configuration),
-  ]);
+    configurations: [...current.configurations, ViewingConfigurationSchema.parse(configuration)],
+  }));
 
+/**
+ * Records the id as deleted even when the cloud never held it (a browser-only entry shown while
+ * the cloud was unreachable), so no browser's legacy copy can import it again.
+ */
 export const deleteViewingConfiguration = (
   configurationId: string
 ): Promise<ViewingConfiguration[]> =>
-  updateCloudConfigurations(current => current.filter(config => config.id !== configurationId));
+  updateCloudDoc(current => ({
+    configurations: current.configurations.filter(config => config.id !== configurationId),
+    deletedIds: current.deletedIds.includes(configurationId)
+      ? current.deletedIds
+      : [...current.deletedIds, configurationId],
+  }));

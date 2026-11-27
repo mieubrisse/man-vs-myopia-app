@@ -96,7 +96,7 @@ describe('ViewingConfigurationStorage', () => {
     localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, legacyRaw);
 
     expect(await loadViewingConfigurations()).toEqual([desk, hallway]);
-    expect(fake.cloud.get(CLOUD_PATH)).toEqual({ configurations: [desk, hallway] });
+    expect(fake.cloud.get(CLOUD_PATH)).toEqual({ configurations: [desk, hallway], deletedIds: [] });
     expect(localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY)).toBe(legacyRaw);
 
     startFreshSession();
@@ -108,7 +108,7 @@ describe('ViewingConfigurationStorage', () => {
     localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, JSON.stringify([hallway]));
 
     expect(await loadViewingConfigurations()).toEqual([desk, hallway]);
-    expect(fake.cloud.get(CLOUD_PATH)).toEqual({ configurations: [desk, hallway] });
+    expect(fake.cloud.get(CLOUD_PATH)).toEqual({ configurations: [desk, hallway], deletedIds: [] });
   });
 
   it('does not let an empty cloud document overwrite browser-only configurations', async () => {
@@ -116,7 +116,7 @@ describe('ViewingConfigurationStorage', () => {
     localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, JSON.stringify([desk]));
 
     expect(await loadViewingConfigurations()).toEqual([desk]);
-    expect(fake.cloud.get(CLOUD_PATH)).toEqual({ configurations: [desk] });
+    expect(fake.cloud.get(CLOUD_PATH)).toEqual({ configurations: [desk], deletedIds: [] });
   });
 
   it('writes nothing and keeps the local copy when the cloud read fails', async () => {
@@ -189,7 +189,62 @@ describe('ViewingConfigurationStorage', () => {
     expect(await loadViewingConfigurations()).toEqual([desk]);
     expect(fake.cloud.get('users/someone-else/data/viewingConfigurations')).toEqual({
       configurations: [desk],
+      deletedIds: [],
     });
+  });
+
+  it('does not let a second browser’s pre-cloud copy resurrect a deleted configuration', async () => {
+    const preCloudList = JSON.stringify([desk, hallway]);
+
+    // Browser A imports its copy, then deletes Hallway.
+    localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, preCloudList);
+    await loadViewingConfigurations();
+    await deleteViewingConfiguration(hallway.id);
+
+    // Browser B holds the same pre-cloud list and has never imported.
+    startFreshSession();
+    localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, preCloudList);
+    expect(await loadViewingConfigurations()).toEqual([desk]);
+  });
+
+  it('keeps a browser-only entry deleted when it was deleted before ever being imported', async () => {
+    localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, JSON.stringify([desk, hallway]));
+    // The page showed the local list after a failed load, and the user deleted Hallway.
+    await deleteViewingConfiguration(hallway.id);
+
+    expect(await loadViewingConfigurations()).toEqual([desk]);
+  });
+
+  it('never writes or removes the legacy local key when adding or deleting', async () => {
+    const legacyRaw = JSON.stringify([desk]);
+    localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, legacyRaw);
+
+    await loadViewingConfigurations();
+    await addViewingConfiguration(sofa);
+    await deleteViewingConfiguration(desk.id);
+
+    expect(localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY)).toBe(legacyRaw);
+  });
+
+  it('only ever writes the viewing configurations document', async () => {
+    const userDataPath = 'users/kevin/data/userData';
+    const userData = { userId: 'kevin', testResults: [{ any: 'record' }] };
+    fake.cloud.set(userDataPath, userData);
+    localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY, JSON.stringify([desk]));
+
+    await loadViewingConfigurations();
+    await addViewingConfiguration(sofa);
+    await deleteViewingConfiguration(desk.id);
+
+    expect(fake.cloud.get(userDataPath)).toEqual(userData);
+    expect([...fake.cloud.keys()].sort()).toEqual([CLOUD_PATH, userDataPath].sort());
+  });
+
+  it('refuses to read a malformed cloud document even with nothing to import', async () => {
+    fake.cloud.set(CLOUD_PATH, { configurations: 'not a list' });
+
+    await expect(loadViewingConfigurations()).rejects.toThrow();
+    expect(fake.state.writes).toBe(0);
   });
 
   it('leaves unparseable legacy data untouched and imports nothing', async () => {
@@ -204,10 +259,19 @@ describe('ViewingConfigurationStorage', () => {
 describe('mergeLocalIntoCloud', () => {
   it('keeps the cloud entry when both hold the same id, and drops local duplicates', () => {
     const renamedLocally = { ...desk, name: 'Old desk name' };
-    expect(mergeLocalIntoCloud([desk], [renamedLocally, hallway, hallway])).toEqual([
-      desk,
-      hallway,
-    ]);
+    expect(
+      mergeLocalIntoCloud({ configurations: [desk], deletedIds: [] }, [
+        renamedLocally,
+        hallway,
+        hallway,
+      ])
+    ).toEqual({ configurations: [desk, hallway], deletedIds: [] });
+  });
+
+  it('skips ids the user has deleted', () => {
+    expect(
+      mergeLocalIntoCloud({ configurations: [desk], deletedIds: [hallway.id] }, [hallway, sofa])
+    ).toEqual({ configurations: [desk, sofa], deletedIds: [hallway.id] });
   });
 });
 
