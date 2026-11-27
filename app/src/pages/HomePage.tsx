@@ -4,6 +4,10 @@ import './HomePage.css';
 import { ROUTES } from '../lib/routes';
 import Card from '../components/layout/Card.tsx';
 import PageLayout from '../components/layout/PageLayout.tsx';
+import {
+  loadViewingConfigurations,
+  readLegacyLocalConfigurations,
+} from '../lib/ViewingConfigurationStorage.ts';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,17 +19,17 @@ const HomePage: React.FC = () => {
     const existingCalibration = localStorage.getItem('pixelsPerCm');
     setHasCalibration(!!existingCalibration);
 
-    const savedConfigurations = localStorage.getItem('viewingConfigurations');
-    if (savedConfigurations) {
+    const checkViewingConfigurations = async () => {
       try {
-        const parsed = JSON.parse(savedConfigurations);
-        setHasViewingConfigurations(parsed.length > 0);
-      } catch {
-        setHasViewingConfigurations(false);
+        setHasViewingConfigurations((await loadViewingConfigurations()).length > 0);
+      } catch (e) {
+        console.error('Error loading viewing configurations:', e);
+        // Fall back to what this browser still holds rather than blocking the assessment.
+        setHasViewingConfigurations((readLegacyLocalConfigurations() ?? []).length > 0);
       }
-    } else {
-      setHasViewingConfigurations(false);
-    }
+    };
+
+    checkViewingConfigurations();
   }, []);
 
   const handleStartAssessment = () => {
