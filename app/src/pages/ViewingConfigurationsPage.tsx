@@ -3,37 +3,45 @@ import './ViewingConfigurationsPage.css';
 import { HomeLinkButton } from '../components/buttons/HomeLinkButton.tsx';
 import Card from '../components/layout/Card.tsx';
 import PageLayout from '../components/layout/PageLayout.tsx';
-
-interface ViewingConfiguration {
-  id: string;
-  name: string;
-  distanceCentimeters: number;
-}
+import {
+  addViewingConfiguration,
+  deleteViewingConfiguration,
+  loadViewingConfigurations,
+  readLegacyLocalConfigurations,
+  type ViewingConfiguration,
+} from '../lib/ViewingConfigurationStorage.ts';
 
 const ViewingConfigurationsPage: React.FC = () => {
   const [configurations, setConfigurations] = useState<ViewingConfiguration[]>([]);
   const [newConfigName, setNewConfigName] = useState('');
   const [newConfigDistance, setNewConfigDistance] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   // Load existing configurations on component mount
   useEffect(() => {
-    const savedConfigurations = localStorage.getItem('viewingConfigurations');
-    if (savedConfigurations) {
+    const loadConfigurations = async () => {
       try {
-        const parsed = JSON.parse(savedConfigurations);
-        setConfigurations(parsed);
+        setConfigurations(await loadViewingConfigurations());
       } catch (e) {
         console.error('Error loading viewing configurations:', e);
+        // Show what this browser still holds rather than an empty list.
+        setConfigurations(readLegacyLocalConfigurations() ?? []);
+        setError('Could not load your viewing configurations from the cloud.');
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    loadConfigurations();
   }, []);
 
   const generateUUID = (): string => {
     return crypto.randomUUID();
   };
 
-  const handleAddConfiguration = (e: React.FormEvent) => {
+  const handleAddConfiguration = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!newConfigName.trim()) {
@@ -60,19 +68,31 @@ const ViewingConfigurationsPage: React.FC = () => {
       distanceCentimeters: Math.round(distance * 10) / 10,
     };
 
-    const updatedConfigurations = [...configurations, newConfiguration];
-    setConfigurations(updatedConfigurations);
-    localStorage.setItem('viewingConfigurations', JSON.stringify(updatedConfigurations));
-
-    // Clear form
-    setNewConfigName('');
-    setNewConfigDistance('');
+    setIsSubmitting(true);
+    try {
+      setConfigurations(await addViewingConfiguration(newConfiguration));
+      // Clear form
+      setNewConfigName('');
+      setNewConfigDistance('');
+    } catch (e) {
+      console.error('Error saving viewing configuration:', e);
+      setError('Could not save the configuration. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteConfiguration = (configId: string) => {
-    const updatedConfigurations = configurations.filter(config => config.id !== configId);
-    setConfigurations(updatedConfigurations);
-    localStorage.setItem('viewingConfigurations', JSON.stringify(updatedConfigurations));
+  const handleDeleteConfiguration = async (configId: string) => {
+    setError('');
+    setIsSubmitting(true);
+    try {
+      setConfigurations(await deleteViewingConfiguration(configId));
+    } catch (e) {
+      console.error('Error deleting viewing configuration:', e);
+      setError('Could not delete the configuration. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -120,7 +140,11 @@ const ViewingConfigurationsPage: React.FC = () => {
 
                 {error && <div className="error-message">{error}</div>}
 
-                <button type="submit" className="add-configuration-button">
+                <button
+                  type="submit"
+                  className="add-configuration-button"
+                  disabled={isLoading || isSubmitting}
+                >
                   Add Configuration
                 </button>
               </form>
@@ -130,7 +154,9 @@ const ViewingConfigurationsPage: React.FC = () => {
           <div className="right-column">
             <div className="configurations-list">
               <h2>Your Configurations</h2>
-              {configurations.length === 0 ? (
+              {isLoading ? (
+                <p className="no-configurations">Loading…</p>
+              ) : configurations.length === 0 ? (
                 <p className="no-configurations">No configurations added yet.</p>
               ) : (
                 <div className="configurations-list-items">
@@ -143,6 +169,7 @@ const ViewingConfigurationsPage: React.FC = () => {
                       <button
                         className="delete-configuration-button"
                         onClick={() => handleDeleteConfiguration(config.id)}
+                        disabled={isSubmitting}
                         title="Delete configuration"
                       >
                         Delete

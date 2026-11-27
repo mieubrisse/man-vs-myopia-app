@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import './ViewingConfigurationSelectionScreen.css';
 import { HomeLinkButton } from '../buttons/HomeLinkButton.tsx';
 import Button from '../buttons/Button.tsx';
-
-interface ViewingConfiguration {
-  id: string;
-  name: string;
-  distanceCentimeters: number;
-}
+import {
+  loadViewingConfigurations,
+  readLegacyLocalConfigurations,
+  type ViewingConfiguration,
+} from '../../lib/ViewingConfigurationStorage.ts';
 
 interface ViewingConfigurationSelectionScreenProps {
   onStartAssessment: (selectedConfiguration: ViewingConfiguration) => void;
@@ -19,24 +18,36 @@ const ViewingConfigurationSelectionScreen: React.FC<ViewingConfigurationSelectio
   const [configurations, setConfigurations] = useState<ViewingConfiguration[]>([]);
   const [selectedConfigurationId, setSelectedConfigurationId] = useState<string>('');
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
   // Load configurations and set first one as selected
   useEffect(() => {
-    const savedConfigurations = localStorage.getItem('viewingConfigurations');
-    if (savedConfigurations) {
-      try {
-        const parsed = JSON.parse(savedConfigurations);
-        setConfigurations(parsed);
-
-        const lastSelectedId = localStorage.getItem('lastSelectedViewingConfigurationId');
-        if (lastSelectedId && parsed.some((c: ViewingConfiguration) => c.id === lastSelectedId)) {
-          setSelectedConfigurationId(lastSelectedId);
-        } else if (parsed.length > 0) {
-          setSelectedConfigurationId(parsed[0].id);
-        }
-      } catch {
-        console.error('Error loading viewing configurations');
+    const selectInitialConfiguration = (loaded: ViewingConfiguration[]) => {
+      setConfigurations(loaded);
+      // Which configuration was last used is a per-device convenience, so it stays local.
+      const lastSelectedId = localStorage.getItem('lastSelectedViewingConfigurationId');
+      if (lastSelectedId && loaded.some(c => c.id === lastSelectedId)) {
+        setSelectedConfigurationId(lastSelectedId);
+      } else if (loaded.length > 0) {
+        setSelectedConfigurationId(loaded[0].id);
       }
-    }
+    };
+
+    const load = async () => {
+      try {
+        selectInitialConfiguration(await loadViewingConfigurations());
+      } catch (e) {
+        console.error('Error loading viewing configurations:', e);
+        // Fall back to what this browser still holds rather than blocking the assessment.
+        selectInitialConfiguration(readLegacyLocalConfigurations() ?? []);
+        setLoadError('Could not load your viewing configurations from the cloud.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    load();
   }, []);
 
   const handleStartAssessment = () => {
@@ -62,7 +73,10 @@ const ViewingConfigurationSelectionScreen: React.FC<ViewingConfigurationSelectio
 
         <div className="configurations-selection">
           <h2>Available Configurations</h2>
-          {configurations.length === 0 ? (
+          {loadError && <p className="no-configurations">{loadError}</p>}
+          {isLoading ? (
+            <p className="no-configurations">Loading…</p>
+          ) : configurations.length === 0 ? (
             <p className="no-configurations">
               No viewing configurations found. Please add one first.
             </p>
